@@ -2,9 +2,9 @@
 
 # ===== Target =====
 
-file(GLOB_RECURSE Edo_MATHS_UT_SOURCES "*.cpp")
+file(GLOB_RECURSE EDO_MATHS_UT_SOURCES "*.cpp")
 
-add_executable(Edo_MathsUT "../main.cpp" ${Edo_MATHS_UT_SOURCES})
+add_executable(Edo_MathsUT "../main.cpp" ${EDO_MATHS_UT_SOURCES})
 
 target_link_libraries(Edo_MathsUT PRIVATE Edo GTest::gtest_main)
 

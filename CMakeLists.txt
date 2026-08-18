@@ -32,16 +32,19 @@ file(GLOB_RECURSE EDO_SOURCES_HLSL "Source/*.hlsl")
 add_library(Edo STATIC ${EDO_SOURCES_CPP})
 
 # Standard
-target_compile_features(Edo PRIVATE c_std_11 cxx_std_20)
+target_compile_features(Edo PUBLIC c_std_11 cxx_std_20)
 
 # Include Dirs
 target_include_directories(Edo PUBLIC Include Include/SingleHeaders)
 
+# Libs
+#target_link_libraries(Edo PUBLIC )
+
 # Compile options
 if(MSVC)
-	target_compile_options(Edo PRIVATE /W4 /WX)
+	target_compile_options(Edo PUBLIC /W4 /WX)
 else()
-	target_compile_options(Edo PRIVATE -Wall Wextra -Werror)
+	target_compile_options(Edo PUBLIC -Wall Wextra -Werror)
 endif()
 
 

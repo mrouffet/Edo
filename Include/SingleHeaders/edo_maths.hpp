@@ -559,7 +559,7 @@ namespace edo
 		template <typename TIn>
 		constexpr Rad operator*(TIn _scale) const noexcept
 		{
-			return Rad(mHandle * _scale);
+			return Rad(static_cast<T>(mHandle * _scale));
 		}
 
 		/**
@@ -576,7 +576,7 @@ namespace edo
 		{
 			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Rad, L"Unscale Rad by 0 (division by 0).");
 
-			return Rad(mHandle / _scale);
+			return Rad(static_cast<T>(mHandle / _scale));
 		}
 
 
@@ -919,14 +919,14 @@ namespace edo
 		template <typename TIn>
 		constexpr Deg operator*(TIn _scale) const noexcept
 		{
-			return Deg(mHandle * _scale);
+			return Deg(static_cast<T>(mHandle * _scale));
 		}
 
 		/**
 		*	\brief \b Unscale angle.
 		*
 		*	\tparam TIn			Type of the input scale.
-		* 
+		*
 		*	\param[in] _scale	un-scale to apply.
 		*
 		*	\return new degree result.
@@ -936,7 +936,7 @@ namespace edo
 		{
 			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Deg, L"Unscale Deg by 0 (division by 0).");
 
-			return Deg(mHandle / _scale);
+			return Deg(static_cast<T>(mHandle / _scale));
 		}
 
 
@@ -5325,9 +5325,9 @@ namespace edo
 		Mat3 operator*(TIn _scale) const noexcept
 		{
 			return Mat3(
-				e00 * _scale, e01 * _scale, e02 * _scale,
-				e10 * _scale, e11 * _scale, e12 * _scale,
-				e20 * _scale, e21 * _scale, e22 * _scale
+				static_cast<T>(e00 * _scale), static_cast<T>(e01 * _scale), static_cast<T>(e02 * _scale),
+				static_cast<T>(e10 * _scale), static_cast<T>(e11 * _scale), static_cast<T>(e12 * _scale),
+				static_cast<T>(e20 * _scale), static_cast<T>(e21 * _scale), static_cast<T>(e22 * _scale)
 			);
 		}
 
@@ -5346,9 +5346,9 @@ namespace edo
 			//SA_ASSERT((NotEquals0, _scale), SA.Maths, L"Unscale matrix by 0 (division by 0)!");
 
 			return Mat3(
-				e00 / _scale, e01 / _scale, e02 / _scale,
-				e10 / _scale, e11 / _scale, e12 / _scale,
-				e20 / _scale, e21 / _scale, e22 / _scale
+				static_cast<T>(e00 / _scale), static_cast<T>(e01 / _scale), static_cast<T>(e02 / _scale),
+				static_cast<T>(e10 / _scale), static_cast<T>(e11 / _scale), static_cast<T>(e12 / _scale),
+				static_cast<T>(e20 / _scale), static_cast<T>(e21 / _scale), static_cast<T>(e22 / _scale)
 			);
 		}
 
@@ -6600,10 +6600,10 @@ namespace edo
 		Mat4 operator*(TIn _scale) const noexcept
 		{
 			return Mat4(
-				e00 * _scale, e01 * _scale, e02 * _scale, e03 * _scale,
-				e10 * _scale, e11 * _scale, e12 * _scale, e13 * _scale,
-				e20 * _scale, e21 * _scale, e22 * _scale, e23 * _scale,
-				e30 * _scale, e31 * _scale, e32 * _scale, e33 * _scale
+				static_cast<T>(e00 * _scale), static_cast<T>(e01 * _scale), static_cast<T>(e02 * _scale), static_cast<T>(e03 * _scale),
+				static_cast<T>(e10 * _scale), static_cast<T>(e11 * _scale), static_cast<T>(e12 * _scale), static_cast<T>(e13 * _scale),
+				static_cast<T>(e20 * _scale), static_cast<T>(e21 * _scale), static_cast<T>(e22 * _scale), static_cast<T>(e23 * _scale),
+				static_cast<T>(e30 * _scale), static_cast<T>(e31 * _scale), static_cast<T>(e32 * _scale), static_cast<T>(e33 * _scale)
 			);
 		}
 
@@ -6622,10 +6622,10 @@ namespace edo
 			//SA_ASSERT((NotEquals0, _scale), SA.Maths, L"Unscale matrix by 0 (division by 0)!");
 
 			return Mat4(
-				e00 / _scale, e01 / _scale, e02 / _scale, e03 / _scale,
-				e10 / _scale, e11 / _scale, e12 / _scale, e13 / _scale,
-				e20 / _scale, e21 / _scale, e22 / _scale, e23 / _scale,
-				e30 / _scale, e31 / _scale, e32 / _scale, e33 / _scale
+				static_cast<T>(e00 / _scale), static_cast<T>(e01 / _scale), static_cast<T>(e02 / _scale), static_cast<T>(e03 / _scale),
+				static_cast<T>(e10 / _scale), static_cast<T>(e11 / _scale), static_cast<T>(e12 / _scale), static_cast<T>(e13 / _scale),
+				static_cast<T>(e20 / _scale), static_cast<T>(e21 / _scale), static_cast<T>(e22 / _scale), static_cast<T>(e23 / _scale),
+				static_cast<T>(e30 / _scale), static_cast<T>(e31 / _scale), static_cast<T>(e32 / _scale), static_cast<T>(e33 / _scale)
 			);
 		}
 
