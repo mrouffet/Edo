@@ -73,7 +73,8 @@ namespace edo::rhi
 
 	class Shader;
 
-	struct PipelineDesc;
+	struct GfxPipelineDesc;
+	struct CompPipelineDesc;
 	class Pipeline;
 
 	struct BufferDesc;
@@ -485,6 +486,10 @@ namespace edo::rhi
 		void Create();
 		void Destroy();
 
+		Pipeline CreatePipeline(const GfxPipelineDesc& _desc);
+		Pipeline CreatePipeline(const CompPipelineDesc& _desc);
+		void DestroyPipeline(Pipeline& _pip);
+
 		Buffer CreateBuffer(const BufferDesc& _desc);
 		void DestroyBuffer(Buffer& _buff);
 
@@ -497,6 +502,9 @@ namespace edo::rhi
 	void Device::Create()
 	{
 #if EDO_RHI_DX12
+		//SA_ERROR(!mAdapter, "Try create non-null device");
+		//SA_ERROR(!mHandle, "Try create non-null device");
+
 		const HRESULT hrQueryGPU = factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
 		if (FAILED(hrQueryGPU))
 		{
@@ -523,7 +531,7 @@ namespace edo::rhi
 		{
 			MComPtr<ID3D12InfoQueue1> infoQueue = nullptr;
 
-			const HRESULT hrQueryInfoQueue = mDevice->QueryInterface(IID_PPV_ARGS(&infoQueue));
+			const HRESULT hrQueryInfoQueue = mHandle->QueryInterface(IID_PPV_ARGS(&infoQueue));
 			if (SUCCEEDED(hrQueryInfoQueue))
 			{
 				infoQueue->RegisterMessageCallback(ValidationLayersDebugCallback,
@@ -546,6 +554,7 @@ namespace edo::rhi
 	void Device::Destroy()
 	{
 #if EDO_RHI_DX12
+
 	#if EDO_DEBUG
 		if (mVLayerCallbackCookie)
 		{
@@ -560,10 +569,38 @@ namespace edo::rhi
 		}
 	#endif
 
+		//SA_WARN(mHandle, "Try destroy null device");
+		//SA_WARN(mAdapter, "Try destroy null device");
+
 		//SA_LOG(L"Destroying Device...", Info, Edo.RHI.DX12, mDevice.Get());
 		mHandle = nullptr;
 		mAdapter = nullptr;
+
 #endif // EDO_RHI_DX12
+	}
+
+
+	Pipeline Device::CreatePipeline(const GfxPipelineDesc& _desc)
+	{
+		Pipeline pip;
+
+		pip.Create(*this, _desc);
+
+		return pip;
+	}
+
+	Pipeline Device::CreatePipeline(const CompPipelineDesc& _desc)
+	{
+		Pipeline pip;
+
+		pip.Create(*this, _desc);
+
+		return pip;
+	}
+
+	void Device::DestroyPipeline(Pipeline& _pip)
+	{
+		_pip.Destroy(*this);
 	}
 
 
@@ -653,24 +690,643 @@ namespace edo::rhi
 // #					PIPELINE								#
 // ##############################################################
 
-	struct PipelineDesc
+	enum class PolygonMode : uint8_t
+	{
+		// Draw fill triangle.
+		Fill,
+
+		// Draw line only.
+		Line,
+
+		// Draw point only.
+		Point,
+	};
+
+	enum class CullingMode : uint8_t
+	{
+		// No culling.
+		None,
+
+		// Front-face culling.
+		Front,
+
+		// Back-face culling.
+		Back,
+	};
+
+	enum class FrontFaceMode : uint8_t
+	{
+		// Clockwise polygon are front-face.
+		Clockwise,
+
+		// Counter clockwise polygon are front-face.
+		CounterClockwise,
+	};
+
+	enum class DepthTestingMethod
+	{
+		Default = 0,
+
+		Inverse = 1,
+	};
+
+
+	struct GfxPipShaderStageDesc
+	{
+		/// Vertex Shader.
+		Shader* vs = nullptr;
+
+		/// Geometry Shader.
+		Shader* gs = nullptr;
+
+		/// Pixel Shader.
+		Shader* ps = nullptr;
+	};
+
+	struct GfxPipRasterizationDesc
+	{
+		/// Whether to use conservative rasterization.
+		bool bConservative = false;
+
+		/// Polygon mode.
+		PolygonMode polygon = PolygonMode::Fill;
+
+		/// Culling mode.
+		CullingMode cullingMode = CullingMode::Back;
+
+		/// Rasterization front face mode.
+		FrontFaceMode frontFace = FrontFaceMode::Clockwise;
+	};
+
+	struct GfxPipDepthStencilDesc
+	{
+		/// Enable depth testing.
+		bool bDepthTest = true;
+
+		/// Enable write into depth buffer.
+		bool bDepthWrite = true;
+
+		/// Enable stencil testing.
+		bool bStencilTest = false;
+
+		DepthTestingMethod method = DepthTestingMethod::Default;
+	};
+
+	struct GfxPipelineDesc
+	{
+		GfxPipShaderStageDesc shaders{};
+
+		GfxPipRasterizationDesc raster{};
+
+		GfxPipDepthStencilDesc depthStencil{};
+	};
+
+
+	struct CompPipelineDesc
 	{
 	};
+
 
 	class Pipeline
 	{
 #if EDO_RHI_DX12
 
-		MComPtr<ID3D12PipelineState> mPipelineState = nullptr;
+		MComPtr<ID3D12PipelineState> mHandle = nullptr;
 
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
 
-		VkPipeline mPipeline = VK_NULL_HANDLE;
+		VkPipeline mHandle = VK_NULL_HANDLE;
 
 #endif // EDO_RHI_VK
+
+	private:
+	public:
+		void Create(const Device& _device, const GfxPipelineDesc& _desc);
+		void Create(const Device& _device, const CompPipelineDesc& _desc);
+		void Destroy(const Device& _device);
 	};
+
+#if EDO_RHI_IMPLEMENTATION
+
+	namespace intl
+	{
+#if EDO_RHI_DX12
+
+		D3D12_FILL_MODE MapPolygonModeToDX(PolygonMode _mode)
+		{
+			switch (_mode)
+			{
+				case PolygonMode::Fill:
+					return D3D12_FILL_MODE_SOLID;
+				case PolygonMode::Line:
+				case PolygonMode::Point:
+					return D3D12_FILL_MODE_WIREFRAME;
+				default:
+				{
+					// SA_LOG(Error)
+					return D3D12_FILL_MODE_SOLID;
+				}
+			}
+		}
+
+		D3D12_CULL_MODE MapCullingModeToDX(CullingMode _mode)
+		{
+			switch (_mode)
+			{
+				case CullingMode::None:
+					return D3D12_CULL_MODE_NONE;
+				case CullingMode::Front:
+					return D3D12_CULL_MODE_FRONT;
+				case CullingMode::Back:
+					return D3D12_CULL_MODE_BACK;
+				default:
+				{
+					// SA_LOG(Error)
+					return D3D12_CULL_MODE_NONE;
+				}
+			}
+		}
+
+		BOOL MapFrontFaceModeToDX(FrontFaceMode _mode)
+		{
+			switch (_mode)
+			{
+				case FrontFaceMode::Clockwise:
+					return TRUE;
+				case FrontFaceMode::CounterClockwise:
+					return FALSE;
+				default:
+				{
+					// SA_LOG()
+					return TRUE;
+				}
+			}
+		}
+
+#endif // EDO_RHI_DX12
+	}
+
+	void Pipeline::Create(const Device& _device, const GfxPipelineDesc& _desc)
+	{
+#if EDO_RHI_DX12
+
+		// PipelineState
+		{
+			const D3D12_RENDER_TARGET_BLEND_DESC rtBlend{
+				.BlendEnable = false,
+				.LogicOpEnable = false,
+
+				.SrcBlend = D3D12_BLEND_ONE,
+				.DestBlend = D3D12_BLEND_ZERO,
+				.BlendOp = D3D12_BLEND_OP_ADD,
+
+				.SrcBlendAlpha = D3D12_BLEND_ONE,
+				.DestBlendAlpha = D3D12_BLEND_ZERO,
+				.BlendOpAlpha = D3D12_BLEND_OP_ADD,
+
+				.LogicOp = D3D12_LOGIC_OP_NOOP,
+
+				.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
+			};
+
+			const D3D12_BLEND_DESC blendState{
+				.AlphaToCoverageEnable = false,
+				.IndependentBlendEnable = false,
+
+				.RenderTarget
+				{
+					rtBlend,
+					rtBlend,
+					rtBlend,
+					rtBlend,
+					rtBlend,
+					rtBlend,
+					rtBlend,
+					rtBlend
+				}
+			};
+
+			const D3D12_RASTERIZER_DESC raster{
+				.FillMode = intl::MapPolygonModeToDX(_desc.raster.polygon),
+				.CullMode = intl::MapCullingModeToDX(_desc.raster.cullingMode),
+				.FrontCounterClockwise = intl::MapFrontFaceModeToDX(_desc.raster.frontFace),
+				.DepthBias = D3D12_DEFAULT_DEPTH_BIAS,
+				.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+				.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+				.DepthClipEnable = TRUE,
+				.MultisampleEnable = FALSE,
+				.AntialiasedLineEnable = FALSE,
+				.ForcedSampleCount = 0,
+				.ConservativeRaster = _desc.raster.bConservative ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+			};
+
+			const D3D12_DEPTH_STENCIL_DESC depthStencilState{
+				.DepthEnable = _desc.depthStencil.bDepthTest ? TRUE : FALSE,
+				.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
+				.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+				.StencilEnable = _desc.depthStencil.bStencilTest ? TRUE : FALSE,
+				.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK,
+				.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK,
+				.FrontFace
+				{
+					.StencilFailOp = D3D12_STENCIL_OP_KEEP,
+					.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP,
+					.StencilPassOp = D3D12_STENCIL_OP_KEEP,
+					.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+				},
+				.BackFace
+				{
+					.StencilFailOp = D3D12_STENCIL_OP_KEEP,
+					.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP,
+					.StencilPassOp = D3D12_STENCIL_OP_KEEP,
+					.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+				}
+			};
+
+			D3D12_INPUT_ELEMENT_DESC inputElems[]{
+				//{
+				//	.SemanticName = "POSITION",
+				//	.SemanticIndex = 0,
+				//	.Format = DXGI_FORMAT_R32G32B32_FLOAT,
+				//		.InputSlot = 0,
+				//		.AlignedByteOffset = 0,
+				//		.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+				//		.InstanceDataStepRate = 0
+				//},
+				//{
+				//	.SemanticName = "NORMAL",
+				//	.SemanticIndex = 0,
+				//	.Format = DXGI_FORMAT_R32G32B32_FLOAT,
+				//	.InputSlot = 1,
+				//	.AlignedByteOffset = 0,
+				//	.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+				//	.InstanceDataStepRate = 0
+				//},
+				//{
+				//	.SemanticName = "TANGENT",
+				//	.SemanticIndex = 0,
+				//	.Format = DXGI_FORMAT_R32G32B32_FLOAT,
+				//	.InputSlot = 2,
+				//	.AlignedByteOffset = 0,
+				//	.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+				//	.InstanceDataStepRate = 0
+				//},
+				//{
+				//	.SemanticName = "TEXCOORD",
+				//	.SemanticIndex = 0,
+				//	.Format = DXGI_FORMAT_R32G32_FLOAT,
+				//	.InputSlot = 3,
+				//	.AlignedByteOffset = 0,
+				//	.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+				//	.InstanceDataStepRate = 0
+				//}
+			};
+			const D3D12_INPUT_LAYOUT_DESC inputLayout{
+				.pInputElementDescs = inputElems,
+				.NumElements = _countof(inputElems)
+			};
+
+
+			const D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{
+				.pRootSignature = litRootSign.Get(),
+
+				.VS{
+					.pShaderBytecode = litVertexShader->GetBufferPointer(),
+					.BytecodeLength = litVertexShader->GetBufferSize()
+				},
+				.PS{
+					.pShaderBytecode = litPixelShader->GetBufferPointer(),
+					.BytecodeLength = litPixelShader->GetBufferSize()
+				},
+
+				.StreamOutput = {},
+				.BlendState = blendState,
+				.SampleMask = UINT_MAX,
+
+				.RasterizerState = raster,
+				.InputLayout = inputLayout,
+
+				.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+
+				.NumRenderTargets = 1,
+				.RTVFormats{
+					sceneColorFormat
+				},
+				.DSVFormat = sceneDepthFormat,
+
+				.SampleDesc
+				{
+					.Count = 1,
+					.Quality = 0,
+				},
+
+				.NodeMask = 0,
+
+				.CachedPSO
+				{
+					.pCachedBlob = nullptr,
+					.CachedBlobSizeInBytes = 0,
+				},
+
+				.Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
+			};
+
+			const HRESULT hrCreatePipeline = _device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&mHandle));
+			if (FAILED(hrCreatePipeline))
+			{
+				//SA_LOG(L"Create Lit PipelineState failed!", Error, DX12, (L"Error Code: %1", hrCreatePipeline));
+				return EXIT_FAILURE;
+			}
+			
+			//SA_LOG(L"Create Lit PipelineState success.", Info, DX12, litPipelineState.Get());
+		}
+
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+
+		// Pipeline
+		{
+			const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{
+				VkPipelineShaderStageCreateInfo{
+					.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+					.pNext = nullptr,
+					.flags = 0u,
+					.stage = VK_SHADER_STAGE_VERTEX_BIT,
+					.module = litVertexShader,
+					.pName = "main",
+					.pSpecializationInfo = nullptr,
+				},
+				VkPipelineShaderStageCreateInfo{
+					.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+					.pNext = nullptr,
+					.flags = 0u,
+					.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+					.module = litFragmentShader,
+					.pName = "main",
+					.pSpecializationInfo = nullptr,
+				},
+			};
+
+			const std::array<VkVertexInputBindingDescription, 4> vertexInputBindings{
+				VkVertexInputBindingDescription{ // Position buffer
+					.binding = 0,
+					.stride = sizeof(SA::Vec3f),
+					.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+				},
+				VkVertexInputBindingDescription{ // Normal buffer
+					.binding = 1,
+					.stride = sizeof(SA::Vec3f),
+					.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+				},
+				VkVertexInputBindingDescription{ // Tangent buffer
+					.binding = 2,
+					.stride = sizeof(SA::Vec3f),
+					.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+				},
+				VkVertexInputBindingDescription{ // UV buffer
+					.binding = 3,
+					.stride = sizeof(SA::Vec2f),
+					.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+				},
+			};
+
+			const std::array<VkVertexInputAttributeDescription, 4> vertexInputAttribs{
+				VkVertexInputAttributeDescription{ // Position Input
+					.location = 0u,
+					.binding = 0u,
+					.format = VK_FORMAT_R32G32B32_SFLOAT,
+					.offset = 0u,
+				},
+				VkVertexInputAttributeDescription{ // Normal Input
+					.location = 1u,
+					.binding = 1u,
+					.format = VK_FORMAT_R32G32B32_SFLOAT,
+					.offset = 0u,
+				},
+				VkVertexInputAttributeDescription{ // Tangent Input
+					.location = 2u,
+					.binding = 2u,
+					.format = VK_FORMAT_R32G32B32_SFLOAT,
+					.offset = 0u,
+				},
+				VkVertexInputAttributeDescription{ // UV Input
+					.location = 3u,
+					.binding = 3u,
+					.format = VK_FORMAT_R32G32_SFLOAT,
+					.offset = 0u,
+				},
+			};
+
+			const VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+				.primitiveRestartEnable = VK_FALSE,
+			};
+
+			const VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size()),
+				.pVertexBindingDescriptions = vertexInputBindings.data(),
+				.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttribs.size()),
+				.pVertexAttributeDescriptions = vertexInputAttribs.data(),
+			};
+
+			const VkPipelineViewportStateCreateInfo viewportInfo{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.viewportCount = 1,
+				.pViewports = &viewport,
+				.scissorCount = 1,
+				.pScissors = &scissorRect,
+			};
+
+			const VkPipelineRasterizationStateCreateInfo rasterInfo{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.depthClampEnable = VK_FALSE,
+				.rasterizerDiscardEnable = VK_FALSE,
+				.polygonMode = VK_POLYGON_MODE_FILL,
+				.cullMode = VK_CULL_MODE_BACK_BIT,
+				.frontFace = VK_FRONT_FACE_CLOCKWISE,
+				.depthBiasEnable = VK_FALSE,
+				.depthBiasConstantFactor = 0.0f,
+				.depthBiasClamp = 0.0f,
+				.depthBiasSlopeFactor = 0.0f,
+				.lineWidth = 1.0f,
+			};
+
+			const VkPipelineMultisampleStateCreateInfo multisampleInfo{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+				.sampleShadingEnable = VK_FALSE,
+				.minSampleShading = 1.0f,
+				.pSampleMask = nullptr,
+				.alphaToCoverageEnable = VK_FALSE,
+				.alphaToOneEnable = VK_FALSE,
+			};
+
+			const VkPipelineDepthStencilStateCreateInfo depthStencilState{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.depthTestEnable = VK_TRUE,
+				.depthWriteEnable = VK_TRUE,
+				.depthCompareOp = VK_COMPARE_OP_LESS,
+				.depthBoundsTestEnable = VK_FALSE,
+				.stencilTestEnable = VK_FALSE,
+				.front = {},
+				.back = {},
+				.minDepthBounds = 0.0f,
+				.maxDepthBounds = 1.0f,
+			};
+
+			const std::array<VkPipelineColorBlendAttachmentState, 1> colorBlendAttachs{
+				VkPipelineColorBlendAttachmentState{
+					.blendEnable = VK_FALSE,
+					.srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+					.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
+					.colorBlendOp = VK_BLEND_OP_ADD,
+					.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+					.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+					.alphaBlendOp = VK_BLEND_OP_ADD,
+					.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+										VK_COLOR_COMPONENT_G_BIT |
+										VK_COLOR_COMPONENT_B_BIT |
+										VK_COLOR_COMPONENT_A_BIT,
+				},
+			};
+
+			const VkPipelineColorBlendStateCreateInfo colorBlendState{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.logicOpEnable = VK_FALSE,
+				.logicOp = VK_LOGIC_OP_COPY,
+				.attachmentCount = static_cast<uint32_t>(colorBlendAttachs.size()),
+				.pAttachments = colorBlendAttachs.data(),
+				.blendConstants = { 0.0f },
+			};
+
+			const std::array<VkDynamicState, 2> dynamicStates{
+				VK_DYNAMIC_STATE_VIEWPORT,
+				VK_DYNAMIC_STATE_SCISSOR
+			};
+
+			const VkPipelineDynamicStateCreateInfo dynamicStateInfo{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+				.pDynamicStates = dynamicStates.data(),
+			};
+
+
+			const VkGraphicsPipelineCreateInfo pipelineInfo{
+				.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0u,
+				.stageCount = static_cast<uint32_t>(shaderStages.size()),
+				.pStages = shaderStages.data(),
+				.pVertexInputState = &vertexInputInfo,
+				.pInputAssemblyState = &inputAssemblyState,
+				.pTessellationState = nullptr,
+				.pViewportState = &viewportInfo,
+				.pRasterizationState = &rasterInfo,
+				.pMultisampleState = &multisampleInfo,
+				.pDepthStencilState = &depthStencilState,
+				.pColorBlendState = &colorBlendState,
+				.pDynamicState = &dynamicStateInfo,
+				.layout = litPipelineLayout,
+				.renderPass = renderPass,
+				.subpass = 0u,
+				.basePipelineHandle = VK_NULL_HANDLE,
+				.basePipelineIndex = -1,
+			};
+
+			const VkResult vrCreatePipeline = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1u, &pipelineInfo, nullptr, &litPipeline);
+			if (vrCreatePipeline != VK_SUCCESS)
+			{
+				SA_LOG(L"Create Lit Pipeline failed!", Error, VK, (L"Error Code: %1", vrCreatePipeline));
+				return EXIT_FAILURE;
+			}
+			else
+			{
+				SA_LOG(L"Create Lit Pipeline success", Info, VK, litPipeline);
+			}
+		}
+
+#endif // EDO_RHI_VK
+	}
+
+	void Pipeline::Create(const Device& _device, const CompPipelineDesc& _desc)
+	{
+#if EDO_RHI_DX12
+
+		// Pipeline State
+		{
+			const D3D12_COMPUTE_PIPELINE_STATE_DESC desc{
+			};
+
+			const HRESULT hrCreatePipeline = _device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&mHandle));
+			if (FAILED(hrCreatePipeline))
+			{
+				//SA_LOG(L"Create Lit PipelineState failed!", Error, DX12, (L"Error Code: %1", hrCreatePipeline));
+				return EXIT_FAILURE;
+			}
+
+			//SA_LOG(L"Create Lit PipelineState success.", Info, DX12, mHandle.Get());
+		}
+
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+#endif // EDO_RHI_VK
+	}
+
+	void Pipeline::Destroy(const Device& _device)
+	{
+#if EDO_RHI_DX12
+
+		//SA_WARN(mHandle, "Try destroy null pipeline");
+
+		// PipelineState
+		{
+			//SA_LOG(L"Destroying Lit PipelineState...", Info, DX12, mHandle.Get());
+
+			mHandle = nullptr;
+		}
+
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+
+		//SA_WARN(mHandle, "Try destroy null pipeline");
+
+		// Pipeline
+		if (mHandle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(device, mHandle, nullptr);
+
+			SA_LOG(L"Destroy Lit Pipeline success.", Info, VK, mHandle);
+
+			mHandle = VK_NULL_HANDLE;
+		}
+
+#endif // EDO_RHI_VK
+	}
+
+#endif // EDO_RHI_IMPLEMENTATION
 
 // ##############################################################
 
@@ -754,6 +1410,8 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
+		//SA_ERROR(!mHandle, "Try create non-null Buffer");
+
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = intl::MapBufferTypeToDX(_desc.type),
 		};
@@ -785,6 +1443,9 @@ namespace edo::rhi
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
+
+		//SA_ERROR(!mHandle, "Try create non-null Buffer");
+		//SA_ERROR(!mMemory, "Try create non-null Buffer");
 
 		// Buffer
 		{
@@ -852,6 +1513,8 @@ namespace edo::rhi
 
 		(void)_device;
 
+		// SA_WARN(mHandle, "try destroy null Buffer);
+
 		//SA_LOG(L"Destroying Buffer...", Info, DX12, mHandle.Get());
 		mHandle = nullptr;
 
@@ -859,7 +1522,11 @@ namespace edo::rhi
 
 #if EDO_RHI_VK
 
+		// SA_WARN(mHandle, "try destroy null Buffer);
+		// SA_WARN(mMemory, "try destroy null Buffer);
+
 		// Buffer
+		if (mHandle != VK_NULL_HANDLE)
 		{
 			vkDestroyBuffer(_device.Get(), mHandle, nullptr);
 
@@ -869,6 +1536,7 @@ namespace edo::rhi
 		}
 
 		// Memory
+		if(mMemory != VK_NULL_HANDLE)
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
@@ -934,6 +1602,8 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
+		//SA_ERROR(!mHandle, "Try create non-null Texture");
+
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = D3D12_HEAP_TYPE_DEFAULT,
 		};
@@ -965,6 +1635,9 @@ namespace edo::rhi
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
+
+		//SA_ERROR(!mHandle, "Try create non-null Texture");
+		//SA_ERROR(!mMemory, "Try create non-null Texture");
 
 		// Image
 		{
@@ -1043,6 +1716,8 @@ namespace edo::rhi
 
 		(void)_device;
 
+		// SA_WARN(mHandle, "try destroy null Buffer);
+
 		//SA_LOG(L"Destroying Texture...", Info, DX12, mHandle.Get());
 		
 		mHandle = nullptr;
@@ -1051,7 +1726,11 @@ namespace edo::rhi
 
 #if EDO_RHI_VK
 
+		// SA_WARN(mHandle, "try destroy null Buffer);
+		// SA_WARN(mMemory, "try destroy null Buffer);
+
 		// Image
+		if(mHandle != VK_NULL_HANDLE)
 		{
 			vkDestroyImage(_device.Get(), mHandle, nullptr);
 
@@ -1061,6 +1740,7 @@ namespace edo::rhi
 		}
 
 		// Memory
+		if(mMemory != VK_NULL_HANDLE)
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
