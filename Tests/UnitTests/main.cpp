@@ -2,8 +2,13 @@
 
 #include <gtest/gtest.h>
 
+#define EDO_DEBUG_IMPLEMENTATION 1
+#include <edo_debug.hpp>
+
 int main(int argc, char** argv)
 {
+	edo::Debug::InitDefaultLogger();
+
 	::testing::InitGoogleTest(&argc, argv);
 
 	return RUN_ALL_TESTS();

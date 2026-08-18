@@ -43,6 +43,10 @@ target_include_directories(Edo PUBLIC Include Include/SingleHeaders)
 # Compile options
 if(MSVC)
 	target_compile_options(Edo PUBLIC /W4 /WX)
+
+	### Advanced MSVC preprocessor required for edo_debug.hpp
+	### https://docs.microsoft.com/en-us/cpp/preprocessor/preprocessor-experimental-overview
+	target_compile_options(Edo PUBLIC /Zc:preprocessor)
 else()
 	target_compile_options(Edo PUBLIC -Wall Wextra -Werror)
 endif()

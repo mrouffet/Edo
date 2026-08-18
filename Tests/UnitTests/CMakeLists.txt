@@ -39,5 +39,6 @@ include(GoogleTest)
 
 
 # ===== Entrypoints =====
+add_subdirectory(Debug)
 add_subdirectory(Maths)
 add_subdirectory(Event)
