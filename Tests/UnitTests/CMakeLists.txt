@@ -40,3 +40,4 @@ include(GoogleTest)
 
 # ===== Entrypoints =====
 add_subdirectory(Maths)
+add_subdirectory(Event)
