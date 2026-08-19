@@ -11,14 +11,6 @@
 #if __has_include(<edo_debug.hpp>)
 	#include <edo_debug.hpp>
 #else
-	#if !defined(NDEBUG) || defined(_DEBUG)
-		/// Edo Debug preprocessor.
-		#define EDO_DEBUG 1
-	#else
-		/// Edo Debug preprocessor.
-		#define EDO_DEBUG 0
-	#endif
-
 	#define EDO_LOG(...) {}
 	#define EDO_WARN(...) {}
 	#define EDO_ERROR(...) {}

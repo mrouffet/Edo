@@ -19,12 +19,12 @@
 #if !defined(NDEBUG) || defined(_DEBUG)
 
 	/// Edo Debug preprocessor.
-	#define EDO_DEBUG 1
+	#define EDO_CONFIG_DEBUG 1
 
 #else
 
 	/// Edo Debug preprocessor.
-	#define EDO_DEBUG 0
+	#define EDO_CONFIG_DEBUG 0
 
 #endif
 
@@ -354,7 +354,7 @@ namespace edo
 			const int res = MultiByteToWideChar(CP_UTF8, 0, _cstr, static_cast<int>(srcByteSize), out.data(), wsize);
 			(void)res;
 
-			#if EDO_DEBUG
+			#if EDO_CONFIG_DEBUG
 
 				// Function failed.
 				if (res == 0)
@@ -1835,7 +1835,7 @@ namespace edo
 	#define __EDO_ASSERT3(_str, _lvl, _chan)	__EDO_ASSERT4(_str, _lvl, _chan, L"")
 	#define __EDO_ASSERT2(_str, _lvl)			__EDO_ASSERT3(_str, _lvl, Default)
 
-#if EDO_DEBUG
+#if EDO_CONFIG_DEBUG
 
 	/**
 	*	\def EDO_LOG_END_OF_FRAME()
