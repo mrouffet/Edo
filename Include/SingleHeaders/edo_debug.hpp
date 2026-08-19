@@ -289,7 +289,7 @@ namespace edo
 		}
 		else
 		{
-			return "0x" + std::to_wstring(reinterpret_cast<uint64_t>(_ptr));
+			return L"0x" + std::to_wstring(reinterpret_cast<uint64_t>(_ptr));
 		}
 	}
 

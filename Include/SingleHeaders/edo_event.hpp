@@ -8,6 +8,23 @@
 #include <utility>
 #include <type_traits>
 
+#if __has_include(<edo_debug.hpp>)
+	#include <edo_debug.hpp>
+#else
+	#if !defined(NDEBUG) || defined(_DEBUG)
+		/// Edo Debug preprocessor.
+		#define EDO_DEBUG 1
+	#else
+		/// Edo Debug preprocessor.
+		#define EDO_DEBUG 0
+	#endif
+
+	#define EDO_LOG(...) {}
+	#define EDO_WARN(...) {}
+	#define EDO_ERROR(...) {}
+	#define EDO_ASSERT(...) {}
+#endif
+
 namespace edo
 {
 // ##############################################################
@@ -35,7 +52,7 @@ namespace edo
 			*
 			*	\return new data duplicated.
 			*/
-			virtual IFuncHandle* Duplicate() const = 0;
+			virtual IFuncHandle* Duplicate() const noexcept = 0;
 
 			/**
 			*	\brief \b Compare child data class
@@ -44,7 +61,7 @@ namespace edo
 			*
 			*	\return true on equality.
 			*/
-			virtual bool Compare(const IFuncHandle* _other) const = 0;
+			virtual bool Compare(const IFuncHandle* _other) const noexcept = 0;
 
 			/**
 			*	\brief \b Execute typed implementation.
@@ -58,7 +75,7 @@ namespace edo
 			* 
 			*	return Store operation success.
 			*/
-			virtual bool StoreResult(void* _result)
+			virtual bool StoreResult(void* _result) noexcept
 			{
 				(void)_result;
 				return false;
@@ -89,12 +106,12 @@ namespace edo
 			{
 			}
 
-			IFuncHandle<R, Args...>* Duplicate() const override final
+			IFuncHandle<R, Args...>* Duplicate() const noexcept override final
 			{
 				return new FuncHandle(func);
 			}
 
-			bool Compare(const IFuncHandle<R, Args...>* _other) const override
+			bool Compare(const IFuncHandle<R, Args...>* _other) const noexcept override
 			{
 				const FuncHandle* oFuncH = static_cast<const FuncHandle*>(_other);
 
@@ -103,7 +120,7 @@ namespace edo
 
 			R Execute(Args... _args) override final
 			{
-				//SA_ASSERT((Nullptr, _func), SA.Event.FuncHandle);
+				EDO_ASSERT(func, Edo.Event.FuncHandle, L"Execute on a null handle!");
 
 				return (*func)(std::forward<Args>(_args)...);
 			}
@@ -138,12 +155,12 @@ namespace edo
 			{
 			}
 
-			IFuncHandle<R, Args...>* Duplicate() const override final
+			IFuncHandle<R, Args...>* Duplicate() const noexcept override final
 			{
 				return new MemFuncHandle(caller, func);
 			}
 
-			bool Compare(const IFuncHandle<R, Args...>* _other) const override
+			bool Compare(const IFuncHandle<R, Args...>* _other) const noexcept override
 			{
 				const MemFuncHandle* oFuncH = static_cast<const MemFuncHandle*>(_other);
 
@@ -152,8 +169,8 @@ namespace edo
 
 			R Execute(Args... _args) override final
 			{
-				//SA_ASSERT((Nullptr, _caller), SA.Event.MemFuncHandle);
-				//SA_ASSERT((Nullptr, _func), SA.Event.MemFuncHandle);
+				EDO_ASSERT(caller, Edo.Event.MemFuncHandle, L"Execute on a null caller!");
+				EDO_ASSERT(func, Edo.Event.MemFuncHandle, L"Execute on a null handle!");
 
 				return (caller->*func)(std::forward<Args>(_args)...);
 			}
@@ -185,7 +202,7 @@ namespace edo
 		* 
 		*	\param[in] _func	Static function to bind.
 		*/
-		Function(R(*_func)(Args...)) :
+		Function(R(*_func)(Args...)) noexcept :
 			mHandle{ new intl::FuncHandle<R, Args...>(_func) }
 		{
 		}
@@ -198,7 +215,7 @@ namespace edo
 		*	\param[in] _func	Member function to bind.
 		*/
 		template <typename C>
-		Function(C* _caller, R(C::* _func)(Args...)) :
+		Function(C* _caller, R(C::* _func)(Args...)) noexcept :
 			mHandle{ new intl::MemFuncHandle<C, R, Args...>(_caller, _func) }
 		{
 		}
@@ -227,7 +244,7 @@ namespace edo
 		}
 
 		/// Destructor (free memory).
-		~Function()
+		~Function() noexcept
 		{
 			Clear();
 		}
@@ -264,7 +281,7 @@ namespace edo
 		*
 		*	\return Whether this and _other are equal.
 		*/
-		bool Equals(const Function& _other) const
+		bool Equals(const Function& _other) const noexcept
 		{
 			if (mHandle)
 			{
@@ -289,7 +306,7 @@ namespace edo
 		*
 		*	\return Whether this and _other are equal.
 		*/
-		bool operator==(const Function& _rhs) const
+		bool operator==(const Function& _rhs) const noexcept
 		{
 			return Equals(_rhs);
 		}
@@ -301,7 +318,7 @@ namespace edo
 		*
 		*	\return Whether this and _other are non-equal.
 		*/
-		bool operator!=(const Function& _rhs) const
+		bool operator!=(const Function& _rhs) const noexcept
 		{
 			return !(*this == _rhs);
 		}
@@ -317,7 +334,7 @@ namespace edo
 		* 
 		*	\param[in] _func	New static function to bind.
 		*/
-		void Set(R(*_func)(Args...))
+		void Set(R(*_func)(Args...)) noexcept
 		{
 			Clear();
 
@@ -333,7 +350,7 @@ namespace edo
 		*	\param[in] _func	New member function to bind.
 		*/
 		template <typename C>
-		void Set(C* _caller, R(C::* _func)(Args...))
+		void Set(C* _caller, R(C::* _func)(Args...)) noexcept
 		{
 			Clear();
 
@@ -408,7 +425,7 @@ namespace edo
 		*	\brief <b>Clear</b> bound function.
 		*	Free allocated memory.
 		*/
-		void Clear()
+		void Clear() noexcept
 		{
 			if (mHandle)
 			{
@@ -423,7 +440,7 @@ namespace edo
 		* 
 		*	\return this 
 		*/
-		Function& operator=(std::nullptr_t)
+		Function& operator=(std::nullptr_t) noexcept
 		{
 			Clear();
 
@@ -444,7 +461,7 @@ namespace edo
 		*/
 		R Execute(Args... _args) const
 		{
-			//SA_ERROR(mHandle)
+			EDO_ERROR(mHandle, Edo.Event.Function, L"Execute on a null handle!");
 
 			if (mHandle)
 			{
@@ -532,7 +549,7 @@ namespace edo
 		*	\param[in] _args	Args to pack.
 		*/
 		template <typename C>
-		PackedFunction(C* _caller, R(C::* _func)(Args...), Args... _args) :
+		PackedFunction(C* _caller, R(C::* _func)(Args...), Args... _args) noexcept :
 			Function<R, Args...>(_caller, _func),
 			mArgs{ std::forward<Args>(_args)... }
 		{
@@ -579,7 +596,7 @@ namespace edo
 		*
 		*	\return Whether this and _other are equal.
 		*/
-		bool Equals(const PackedFunction& _other) const
+		bool Equals(const PackedFunction& _other) const noexcept
 		{
 			return Function<R, Args...>::Equals(_other) && mArgs == _other.mArgs;
 		}
@@ -591,7 +608,7 @@ namespace edo
 		*
 		*	\return Whether this and _other are equal.
 		*/
-		bool operator==(const PackedFunction& _rhs) const
+		bool operator==(const PackedFunction& _rhs) const noexcept
 		{
 			return Equals(_rhs);
 		}
@@ -604,7 +621,7 @@ namespace edo
 		*
 		*	\return Whether this and _other are non-equal.
 		*/
-		bool operator!=(const PackedFunction& _rhs) const
+		bool operator!=(const PackedFunction& _rhs) const noexcept
 		{
 			return !(*this == _rhs);
 		}
@@ -623,7 +640,7 @@ namespace edo
 		*	\param[in] _func	New static function to bind.
 		*	\param[in] _args	Args to pack.
 		*/
-		void Set(R(*_func)(Args...), Args... _args)
+		void Set(R(*_func)(Args...), Args... _args) noexcept
 		{
 			Function<R, Args...>::Set(_func);
 			mArgs = std::tuple<Args...>{ std::forward<Args>(_args)... };
@@ -639,7 +656,7 @@ namespace edo
 		*	\param[in] _args	Args to pack.
 		*/
 		template <typename C>
-		void Set(C* _caller, R(C::* _func)(Args...), Args... _args)
+		void Set(C* _caller, R(C::* _func)(Args...), Args... _args) noexcept
 		{
 			Function<R, Args...>::Set(_caller, _func);
 			mArgs = std::tuple<Args...>{ std::forward<Args>(_args)... };
@@ -751,14 +768,14 @@ namespace edo
 			{
 			}
 
-			bool Compare(const IFuncHandle<R, Args...>* _other) const override final
+			bool Compare(const IFuncHandle<R, Args...>* _other) const noexcept override final
 			{
 				const EventFuncHandle* oFuncH = static_cast<const EventFuncHandle*>(_other);
 
 				return FuncHandle<R, Args...>::Compare(_other) && result == oFuncH->result;
 			}
 
-			bool StoreResult(void* _inRes) override final
+			bool StoreResult(void* _inRes) noexcept override final
 			{
 				if (result)
 				{
@@ -805,14 +822,14 @@ namespace edo
 			{
 			}
 
-			bool Compare(const IFuncHandle<R, Args...>* _other) const override final
+			bool Compare(const IFuncHandle<R, Args...>* _other) const noexcept override final
 			{
 				const EventMemFuncHandle* oFuncH = static_cast<const EventMemFuncHandle*>(_other);
 
 				return MemFuncHandle<C, R, Args...>::Compare(_other) && result == oFuncH->result;
 			}
 
-			bool StoreResult(void* _inRes) override final
+			bool StoreResult(void* _inRes) noexcept override final
 			{
 				if (result)
 				{
@@ -870,7 +887,7 @@ namespace edo
 		Event(const Event& _other) = delete;
 
 		/// Destructor (auto clean).
-		~Event()
+		~Event() noexcept
 		{
 			Clear();
 		}
@@ -895,7 +912,7 @@ namespace edo
 		* 
 		*	\return true if non empty.
 		*/
-		operator bool() const
+		operator bool() const noexcept
 		{
 			return mFuncHandles.size();
 		}
@@ -909,7 +926,7 @@ namespace edo
 		*	\brief <b>Clear</b> all registered function.
 		*	Free allocated memory.
 		*/
-		void Clear()
+		void Clear() noexcept
 		{
 			for (auto funcHandle : mFuncHandles)
 			{
@@ -925,7 +942,7 @@ namespace edo
 		*
 		*	\return this
 		*/
-		Event& operator=(std::nullptr_t)
+		Event& operator=(std::nullptr_t) noexcept
 		{
 			Clear();
 
@@ -945,9 +962,9 @@ namespace edo
 		*	\param[in] _func	Function to register.
 		*	\param[in] _result	Optionnal result handle.
 		*/
-		void Add(R(*_func)(Args...), R* _result = nullptr)
+		void Add(R(*_func)(Args...), R* _result = nullptr) noexcept
 		{
-			//SA_ASSERT((Nullptr, _func), SA.Event.Event, L"Add nullptr function!");
+			EDO_ERROR(_func, Edo.Event.Event, L"Try add nullptr function!", return;);
 
 			mFuncHandles.push_back(new intl::EventFuncHandle{ _func, _result });
 		}
@@ -964,10 +981,10 @@ namespace edo
 		*	\param[in] _result	Optionnal result handle.
 		*/
 		template <typename C>
-		void Add(C* _caller, R(C::* _func)(Args...), R* _result = nullptr)
+		void Add(C* _caller, R(C::* _func)(Args...), R* _result = nullptr) noexcept
 		{
-			//SA_ASSERT((Nullptr, _caller), SA.Event.Event, L"Add nullptr caller!");
-			//SA_ASSERT((Nullptr, _func), SA.Event.Event, L"Add nullptr function!");
+			EDO_ERROR(_caller, Edo.Event.Event, L"Try add nullptr caller!", return;);
+			EDO_ERROR(_func, Edo.Event.Event, L"Try add nullptr function!", return;);
 
 			mFuncHandles.push_back(new intl::EventMemFuncHandle{ _caller, _func, _result });
 		}
@@ -981,9 +998,9 @@ namespace edo
 		* 
 		*	\returns true if successfully removed, otherwise false.
 		*/
-		bool Remove(R(*_func)(Args...), R* _result = nullptr)
+		bool Remove(R(*_func)(Args...), R* _result = nullptr) noexcept
 		{
-			//SA_ASSERT((Nullptr, _func), SA.Event.Event, L"Remove nullptr function!");
+			EDO_ERROR(_func, Edo.Event.Event, L"Try remove nullptr function!", return false;);
 
 			intl::EventFuncHandle inHandle(_func, _result);
 
@@ -995,6 +1012,9 @@ namespace edo
 					return true;
 				}
 			}
+
+			EDO_LOG(L"Try remove function not found.", Error, Edo.Event.Event,
+				(L"func {%1}\tresult{%2}", _func, _result));
 
 			return false;
 		}
@@ -1010,10 +1030,10 @@ namespace edo
 		*	\returns true if successfully removed, otherwise false.
 		*/
 		template <typename C>
-		bool Remove(C* _caller, R(C::* _func)(Args...), R* _result = nullptr)
+		bool Remove(C* _caller, R(C::* _func)(Args...), R* _result = nullptr) noexcept
 		{
-			//SA_ASSERT((Nullptr, _caller), SA.Event.Event, L"Add nullptr caller!");
-			//SA_ASSERT((Nullptr, _func), SA.Event.Event, L"Add nullptr function!");
+			EDO_ERROR(_caller, Edo.Event.Event, L"Try remove nullptr caller!", return false;);
+			EDO_ERROR(_func, Edo.Event.Event, L"Try remove nullptr function!", return false;);
 
 			intl::EventMemFuncHandle inHandle(_caller, _func, _result);
 
@@ -1025,6 +1045,9 @@ namespace edo
 					return true;
 				}
 			}
+
+			EDO_LOG(L"Try remove function not found.", Error, Edo.Event.Event,
+				(L"caller {%1}\tfunc {%2}\tresult{%3}", _caller, _func, _result));
 
 			return false;
 		}
@@ -1038,9 +1061,9 @@ namespace edo
 		* 
 		*	\returns true if successfully removed, otherwise false.
 		*/
-		bool RRemove(R(*_func)(Args...), R* _result = nullptr)
+		bool RRemove(R(*_func)(Args...), R* _result = nullptr) noexcept
 		{
-			//SA_ASSERT((Nullptr, _func), SA.Event.Event, L"Remove nullptr function!");
+			EDO_ERROR(_func, Edo.Event.Event, L"Try remove nullptr function!", return false;);
 
 			intl::EventFuncHandle inHandle(_func, _result);
 
@@ -1053,6 +1076,9 @@ namespace edo
 					return true;
 				}
 			}
+
+			EDO_LOG(L"Try remove function not found.", Error, Edo.Event.Event,
+				(L"func {%1}\tresult{%2}", _func, _result));
 
 			return false;
 		}
@@ -1068,10 +1094,10 @@ namespace edo
 		*	\returns true if successfully removed, otherwise false.
 		*/
 		template <typename C>
-		bool RRemove(C* _caller, R(C::* _func)(Args...), R* _result = nullptr)
+		bool RRemove(C* _caller, R(C::* _func)(Args...), R* _result = nullptr) noexcept
 		{
-			//SA_ASSERT((Nullptr, _caller), SA.Event.Event, L"Add nullptr caller!");
-			//SA_ASSERT((Nullptr, _func), SA.Event.Event, L"Add nullptr function!");
+			EDO_ERROR(_caller, Edo.Event.Event, L"Try remove nullptr caller!", return false;);
+			EDO_ERROR(_func, Edo.Event.Event, L"Try remove nullptr function!", return false;);
 
 			intl::EventMemFuncHandle inHandle(_caller, _func, _result);
 
@@ -1084,6 +1110,9 @@ namespace edo
 					return true;
 				}
 			}
+
+			EDO_LOG(L"Try remove function not found.", Error, Edo.Event.Event,
+				(L"caller {%1}\tfunc {%2}\tresult{%3}", _caller, _func, _result));
 
 			return false;
 		}
@@ -1100,7 +1129,7 @@ namespace edo
 		{
 			for (auto func : mFuncHandles)
 			{
-				//SA_ASSERT(func)
+				EDO_ASSERT(func, Edo.Event.Event, L"Execute on a null handle!");
 
 				if constexpr (!std::is_void<R>::value)
 				{
@@ -1129,9 +1158,13 @@ namespace edo
 
 			for (size_t i = 0; i < mFuncHandles.size(); ++i)
 			{
-				R res = _results.emplace_back(mFuncHandles[i]->Execute(_args...));
+				auto func = mFuncHandles[i];
 
-				mFuncHandles[i]->StoreResult(&res);
+				EDO_ASSERT(func, Edo.Event.Event, L"Execute on a null handle!");
+
+				R res = _results.emplace_back(func->Execute(_args...));
+
+				func->StoreResult(&res);
 			}
 		}
 
@@ -1145,7 +1178,7 @@ namespace edo
 		*
 		*	\return this.
 		*/
-		Event& operator=(Event&& _other)
+		Event& operator=(Event&& _other) noexcept
 		{
 			Clear();
 
@@ -1171,7 +1204,7 @@ namespace edo
 		* 
 		*	\returns This event.
 		*/
-		Event& operator+=(R(*_func)(Args...))
+		Event& operator+=(R(*_func)(Args...)) noexcept
 		{
 			Add(_func);
 
@@ -1187,7 +1220,7 @@ namespace edo
 		* 
 		*	\returns This event.
 		*/
-		Event& operator-=(R(*_func)(Args...))
+		Event& operator-=(R(*_func)(Args...)) noexcept
 		{
 			Remove(_func);
 
