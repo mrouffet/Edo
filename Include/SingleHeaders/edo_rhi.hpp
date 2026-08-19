@@ -5,37 +5,39 @@
 #ifndef EDO_SH_RHI_GUARD
 #define EDO_SH_RHI_GUARD
 
-
-#if !defined(EDO_RHI_DX12) && !defined(EDO_RHI_VK) && !defined(EDO_RHI_CPU)
-
-	#if WIN32
-	
-		#define EDO_RHI_DX12 1
-
-	#else
-
-		#define EDO_RHI_VK 1
-
-	#endif
-
-#endif
-
-#ifndef EDO_DEBUG
-	#if !defined(NDEBUG) || defined(_DEBUG)
-
-		#define EDO_DEBUG 1
-
-	#else
-
-		#define EDO_DEBUG 0
-
-	#endif
-#endif
-
-
 #include <cstdint>
 #include <string>
 #include <type_traits>
+
+// Edo Debug Module
+#if __has_include(<edo_debug.hpp>)
+	#include <edo_debug.hpp>
+#else
+	#if !defined(NDEBUG) || defined(_DEBUG)
+		/// Edo Debug preprocessor.
+		#define EDO_CONFIG_DEBUG 1
+	#else
+		#define EDO_CONFIG_DEBUG 0
+	#endif
+
+	#define EDO_LOG(...) {}
+	#define EDO_WARN(...) {}
+	#define EDO_ERROR(...) {}
+	#define EDO_ASSERT(...) {}
+#endif
+
+/**
+*	Graphics API Selector.
+*	User-defined preprocessor to select API.
+*	Define API per-platform by default.
+*/
+#if !defined(EDO_RHI_DX12) && !defined(EDO_RHI_VK) && !defined(EDO_RHI_CPU)
+	#if WIN32
+		#define EDO_RHI_DX12 1
+	#else
+		#define EDO_RHI_VK 1
+	#endif
+#endif
 
 #if EDO_RHI_DX12
 
@@ -44,6 +46,9 @@
 #include <dxgi1_6.h>	// Requires `dxgi.lib`
 
 //#include <dxc/dxcapi.h>
+
+#define EDO_DX12_ASSERT(_hres, _msg)\
+	EDO_ASSERT(SUCCEEDED(_hres), Edo.RHI.DX12, (edo::StringFormat(_msg) + edo::StringFormat(L"\tError Code: %1", _hres)));
 
 #include <wrl.h>
 
@@ -202,7 +207,7 @@ namespace edo::rhi
 
 				default:
 				{
-					// SA_LOG(Error)
+					EDO_LOG((L"Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.DX12);
 					return DXGI_FORMAT_UNKNOWN;
 				}
 			}
@@ -277,7 +282,7 @@ namespace edo::rhi
 
 				default:
 				{
-					// SA_LOG(Error)
+					EDO_LOG((L"DX12 Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.DX12);
 					return Format::Unknown;
 				}
 			}
@@ -356,7 +361,7 @@ namespace edo::rhi
 
 				default:
 				{
-					// SA_LOG(Error)
+					EDO_LOG((L"Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.VK);
 					return VK_FORMAT_UNDEFINED;
 				}
 			}
@@ -431,7 +436,7 @@ namespace edo::rhi
 
 				default:
 				{
-					// SA_LOG(Error)
+					EDO_LOG((L"VK Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.VK);
 					return Format::Unknown;
 				}
 			}
@@ -459,7 +464,7 @@ namespace edo::rhi
 		/// Logical Device
 		MComPtr<ID3D12Device> mHandle = nullptr;
 
-	#if EDO_DEBUG
+	#if EDO_CONFIG_DEBUG
 		DWORD mVLayerCallbackCookie = 0;
 	#endif
 
@@ -502,31 +507,21 @@ namespace edo::rhi
 	void Device::Create()
 	{
 #if EDO_RHI_DX12
-		//SA_ERROR(!mAdapter, "Try create non-null device");
-		//SA_ERROR(!mHandle, "Try create non-null device");
+		EDO_ERROR(!mAdapter, Edo.RHI.DX12, L"Try create an already created device!");
+		EDO_ERROR(!mHandle, Edo.RHI.DX12, L"Try create an already created device!");
 
 		const HRESULT hrQueryGPU = factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
-		if (FAILED(hrQueryGPU))
-		{
-			//SA_LOG(L"Adapter not found!", Error, DX12, (L"Error Code: %1", hrQueryGPU));
-			return EXIT_FAILURE;
-		}
+		EDO_DX12_ASSERT(hrQueryGPU, L"Adapter not found!");
 
 		const HRESULT hrDeviceCreated = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mHandle));
-		if (FAILED(hrDeviceCreated))
-		{
-			//SA_LOG(L"Create Device failed!", Error, DX12, (L"Error Code: %1", hrDeviceCreated));
-			return EXIT_FAILURE;
-		}
-		else
-		{
-			const LPCWSTR name = L"Edo Main Device";
-			mHandle->SetName(name);
+		EDO_DX12_ASSERT(hrDeviceCreated, L"Create Device failed!");
+		
+		const LPCWSTR name = L"Edo Main Device";
+		mHandle->SetName(name);
 
-			//SA_LOG(L"Create Device success.", Info, DX12, (L"\"%1\" [%2]", name, device.Get()));
-		}
+		EDO_LOG(L"Create Device success.", Info, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
 
-	#if EDO_DEBUG
+	#if EDO_CONFIG_DEBUG
 		// Validation Layers
 		{
 			MComPtr<ID3D12InfoQueue1> infoQueue = nullptr;
@@ -543,7 +538,8 @@ namespace edo::rhi
 			}
 			else
 			{
-				//SA_LOG(L"Device query info queue to enable validation layers failed.", Error, DX12, (L"Error Code: %1", hrQueryInfoQueue));
+				EDO_LOG(L"Device query info queue to enable validation layers failed.",
+					Error, Edo.RHI.DX12, (L"Error Code: %1", hrQueryInfoQueue));
 			}
 		}
 	#endif
@@ -555,7 +551,9 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
-	#if EDO_DEBUG
+		EDO_ERROR(!mHandle || !mAdapter, Edo.RHI.DX12, L"Try destroying already null device!", return;);
+
+	#if EDO_CONFIG_DEBUG
 		if (mVLayerCallbackCookie)
 		{
 			MComPtr<ID3D12InfoQueue1> infoQueue = nullptr;
@@ -566,71 +564,20 @@ namespace edo::rhi
 				infoQueue->UnregisterMessageCallback(mVLayerCallbackCookie);
 				mVLayerCallbackCookie = 0;
 			}
+			else
+			{
+				EDO_LOG(L"Device query info queue to clear validation layers failed.",
+					Error, Edo.RHI.DX12, (L"Error Code: %1", hrQueryInfoQueue));
+			}
 		}
 	#endif
 
-		//SA_WARN(mHandle, "Try destroy null device");
-		//SA_WARN(mAdapter, "Try destroy null device");
+		EDO_LOG(L"Destroying Device...", Info, Edo.RHI.DX12, mHandle.Get());
 
-		//SA_LOG(L"Destroying Device...", Info, Edo.RHI.DX12, mDevice.Get());
 		mHandle = nullptr;
 		mAdapter = nullptr;
 
 #endif // EDO_RHI_DX12
-	}
-
-
-	Pipeline Device::CreatePipeline(const GfxPipelineDesc& _desc)
-	{
-		Pipeline pip;
-
-		pip.Create(*this, _desc);
-
-		return pip;
-	}
-
-	Pipeline Device::CreatePipeline(const CompPipelineDesc& _desc)
-	{
-		Pipeline pip;
-
-		pip.Create(*this, _desc);
-
-		return pip;
-	}
-
-	void Device::DestroyPipeline(Pipeline& _pip)
-	{
-		_pip.Destroy(*this);
-	}
-
-
-	Buffer Device::CreateBuffer(const BufferDesc& _desc)
-	{
-		Buffer buff;
-
-		buff.Create(*this, _desc);
-
-		return buff;
-	}
-
-	void Device::DestroyBuffer(Buffer& _buff)
-	{
-		_buff.Destroy(*this);
-	}
-
-
-	Texture Device::CreateTexture(const TextureDesc& _desc)
-	{
-		Texture tex;
-
-		tex.Create(*this, _desc);
-
-		return tex;
-	}
-
-	void Device::DestroyTexture(Texture& _tex)
-	{
-		_tex.Destroy(*this);
 	}
 
 #endif // EDO_RHI_IMPLEMENTATION
@@ -660,6 +607,18 @@ namespace edo::rhi
 		void Create();
 		void Destroy();
 	};
+
+#if EDO_RHI_IMPLEMENTATION
+
+	void Swapchain::Create()
+	{
+	}
+
+	void Swapchain::Destroy()
+	{
+	}
+
+#endif // EDO_RHI_IMPLEMENTATION
 
 // ##############################################################
 
@@ -825,7 +784,7 @@ namespace edo::rhi
 					return D3D12_FILL_MODE_WIREFRAME;
 				default:
 				{
-					// SA_LOG(Error)
+					EDO_LOG((L"Polygon Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12);
 					return D3D12_FILL_MODE_SOLID;
 				}
 			}
@@ -843,7 +802,7 @@ namespace edo::rhi
 					return D3D12_CULL_MODE_BACK;
 				default:
 				{
-					// SA_LOG(Error)
+					EDO_LOG((L"Culling Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12);
 					return D3D12_CULL_MODE_NONE;
 				}
 			}
@@ -859,7 +818,7 @@ namespace edo::rhi
 					return FALSE;
 				default:
 				{
-					// SA_LOG()
+					EDO_LOG((L"FrontFace Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12);
 					return TRUE;
 				}
 			}
@@ -870,7 +829,7 @@ namespace edo::rhi
 
 	void Pipeline::Create(const Device& _device, const GfxPipelineDesc& _desc)
 	{
-#if EDO_RHI_DX12
+#if EDO_RHI_DX12 && 0
 
 		// PipelineState
 		{
@@ -1045,7 +1004,7 @@ namespace edo::rhi
 
 #endif // EDO_RHI_DX12
 
-#if EDO_RHI_VK
+#if EDO_RHI_VK && 0
 
 		// Pipeline
 		{
@@ -1271,7 +1230,7 @@ namespace edo::rhi
 
 	void Pipeline::Create(const Device& _device, const CompPipelineDesc& _desc)
 	{
-#if EDO_RHI_DX12
+#if EDO_RHI_DX12 && 0
 
 		// Pipeline State
 		{
@@ -1298,32 +1257,62 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
-		//SA_WARN(mHandle, "Try destroy null pipeline");
-
 		// PipelineState
+		if (mHandle)
 		{
-			//SA_LOG(L"Destroying Lit PipelineState...", Info, DX12, mHandle.Get());
+			EDO_LOG(L"Destroying PipelineState...", Info, Edo.RHI.DX12, mHandle.Get());
 
 			mHandle = nullptr;
+		}
+		else
+		{
+			EDO_LOG("Try destroy null PipelineState", Warning, Edo.RHI.DX12);
 		}
 
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
 
-		//SA_WARN(mHandle, "Try destroy null pipeline");
-
 		// Pipeline
 		if (mHandle != VK_NULL_HANDLE)
 		{
 			vkDestroyPipeline(device, mHandle, nullptr);
 
-			SA_LOG(L"Destroy Lit Pipeline success.", Info, VK, mHandle);
+			SA_LOG(L"Destroy Pipeline success.", Info, VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
+		else
+		{
+			EDO_LOG("Try destroy null pipeline", Warning, Edo.RHI.VK);
+		}
 
 #endif // EDO_RHI_VK
+	}
+
+
+	// ========== Device Shortcut ==========
+	Pipeline Device::CreatePipeline(const GfxPipelineDesc& _desc)
+	{
+		Pipeline pip;
+
+		pip.Create(*this, _desc);
+
+		return pip;
+	}
+
+	Pipeline Device::CreatePipeline(const CompPipelineDesc& _desc)
+	{
+		Pipeline pip;
+
+		pip.Create(*this, _desc);
+
+		return pip;
+	}
+
+	void Device::DestroyPipeline(Pipeline& _pip)
+	{
+		_pip.Destroy(*this);
 	}
 
 #endif // EDO_RHI_IMPLEMENTATION
@@ -1398,7 +1387,7 @@ namespace edo::rhi
 					return D3D12_HEAP_TYPE_READBACK;
 				default:
 				{
-					// SA_LOG(Error);
+					EDO_LOG((L"Buffer Type {%1} not supported", static_cast<uint32_t>(_type)), Error, Edo.RHI.DX12);
 					return D3D12_HEAP_TYPE_DEFAULT;
 				}
 			}
@@ -1410,7 +1399,7 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
-		//SA_ERROR(!mHandle, "Try create non-null Buffer");
+		EDO_ERROR(!mHandle, Edo.RHI.DX12, "Try create on non-null Buffer");
 
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = intl::MapBufferTypeToDX(_desc.type),
@@ -1430,22 +1419,18 @@ namespace edo::rhi
 		};
 
 		const HRESULT hrBufferCreated = _device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mHandle));
-		if (FAILED(hrBufferCreated))
-		{
-			//SA_LOG(L"Create PointLights Buffer failed!", Error, DX12, (L"Error code: %1", hrBufferCreated));
-			return EXIT_FAILURE;
-		}
+		EDO_DX12_ASSERT(hrBufferCreated, L"Create Buffer Failed!");
 
 		mHandle->SetName(_desc.name.c_str());
 
-		//SA_LOG(L"Create PointLights Buffer success", Info, DX12, (L"\"%1\" [%2]", name, pointLightBuffer.Get()));
+		EDO_LOG(L"Create Buffer success", Info, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
 
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
 
-		//SA_ERROR(!mHandle, "Try create non-null Buffer");
-		//SA_ERROR(!mMemory, "Try create non-null Buffer");
+		EDO_ERROR(!mHandle, Edo.RHI.VK, "Try create on non-null Buffer");
+		EDO_ERROR(!mMemory, Edo.RHI.VK, "Try create on non-null Buffer");
 
 		// Buffer
 		{
@@ -1513,26 +1498,32 @@ namespace edo::rhi
 
 		(void)_device;
 
-		// SA_WARN(mHandle, "try destroy null Buffer);
-
-		//SA_LOG(L"Destroying Buffer...", Info, DX12, mHandle.Get());
-		mHandle = nullptr;
+		if (mHandle)
+		{
+			EDO_LOG(L"Destroying Buffer...", Info, Edo.RHI.DX12, mHandle.Get());
+			mHandle = nullptr;
+		}
+		else
+		{
+			EDO_LOG("Try destroy null Buffer", Warning, Edo.RHI.DX12);
+		}
 
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-
-		// SA_WARN(mHandle, "try destroy null Buffer);
-		// SA_WARN(mMemory, "try destroy null Buffer);
 
 		// Buffer
 		if (mHandle != VK_NULL_HANDLE)
 		{
 			vkDestroyBuffer(_device.Get(), mHandle, nullptr);
 
-			//SA_LOG(L"Destroy Buffer success.", Info, VK, mHandle);
+			EDO_LOG(L"Destroy Buffer success.", Info, Edo.RHI.VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
+		}
+		else
+		{
+			EDO_LOG("Try destroy null Buffer", Warning, Edo.RHI.VK);
 		}
 
 		// Memory
@@ -1540,12 +1531,32 @@ namespace edo::rhi
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
-			//SA_LOG(L"Destroy Buffer Memory success.", Info, VK, mMemory);
+			EDO_LOG(L"Destroy Buffer Memory success.", Info, Edo.RHI.VK, mMemory);
 
 			mMemory = VK_NULL_HANDLE;
 		}
+		else
+		{
+			EDO_LOG("Try destroy null Buffer Memory", Warning, Edo.RHI.VK);
+		}
 
 #endif // EDO_RHI_VK
+	}
+
+
+	// ========== Device Shortcut ==========
+	Buffer Device::CreateBuffer(const BufferDesc& _desc)
+	{
+		Buffer buff;
+
+		buff.Create(*this, _desc);
+
+		return buff;
+	}
+
+	void Device::DestroyBuffer(Buffer& _buff)
+	{
+		_buff.Destroy(*this);
 	}
 
 #endif // EDO_RHI_IMPLEMENTATION
@@ -1602,7 +1613,7 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
-		//SA_ERROR(!mHandle, "Try create non-null Texture");
+		EDO_ERROR(!mHandle, Edo.RHI.DX12, "Try create on non-null Texture");
 
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = D3D12_HEAP_TYPE_DEFAULT,
@@ -1622,22 +1633,18 @@ namespace edo::rhi
 		};
 
 		const HRESULT hrBufferCreated = _device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&mHandle));
-		if (FAILED(hrBufferCreated))
-		{
-			//SA_LOG(L"Create RustedIron2 Albedo Texture failed!", Error, DX12, (L"Error code: %1", hrBufferCreated));
-			return EXIT_FAILURE;
-		}
+		EDO_DX12_ASSERT(hrBufferCreated, L"Create Texture failed!");
 
 		mHandle->SetName(_desc.name.c_str());
 
-		//SA_LOG(L"Create Texture success.", Info, DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+		EDO_LOG(L"Create Texture success.", Info, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
 
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
 
-		//SA_ERROR(!mHandle, "Try create non-null Texture");
-		//SA_ERROR(!mMemory, "Try create non-null Texture");
+		EDO_ERROR(!mHandle, Edo.RHI.VK, "Try create on non-null Texture");
+		EDO_ERROR(!mMemory, Edo.RHI.VK, "Try create on non-null Texture");
 
 		// Image
 		{
@@ -1716,11 +1723,15 @@ namespace edo::rhi
 
 		(void)_device;
 
-		// SA_WARN(mHandle, "try destroy null Buffer);
-
-		//SA_LOG(L"Destroying Texture...", Info, DX12, mHandle.Get());
-		
-		mHandle = nullptr;
+		if (mHandle)
+		{
+			EDO_LOG(L"Destroying Texture...", Info, Edo.RHI.DX12, mHandle.Get());
+			mHandle = nullptr;
+		}
+		else
+		{
+			EDO_LOG("Try destroy null Texture", Warning, Edo.RHI.DX12);
+		}
 
 #endif // EDO_RHI_DX12
 
@@ -1734,9 +1745,13 @@ namespace edo::rhi
 		{
 			vkDestroyImage(_device.Get(), mHandle, nullptr);
 
-			//SA_LOG(L"Destroy RustedIron2 Roughness Image success.", Info, VK, mHandle);
+			EDO_LOG(L"Destroy Texture success.", Info, Edo.RHI.VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
+		}
+		else
+		{
+			EDO_LOG("Try destroy null Texture", Warning, Edo.RHI.VK);
 		}
 
 		// Memory
@@ -1744,12 +1759,32 @@ namespace edo::rhi
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
-			//SA_LOG(L"Destroy RustedIron2 Roughness Image Memory success.", Info, VK, mMemory);
+			EDO_LOG(L"Destroy Image Memory success.", Info, Edo.RHI.VK, mMemory);
 
 			mMemory = VK_NULL_HANDLE;
 		}
+		else
+		{
+			EDO_LOG("Try destroy null Image Memory", Warning, Edo.RHI.VK);
+		}
 
 #endif // EDO_RHI_VK
+	}
+
+
+	// ========== Device Shortcut ==========
+	Texture Device::CreateTexture(const TextureDesc& _desc)
+	{
+		Texture tex;
+
+		tex.Create(*this, _desc);
+
+		return tex;
+	}
+
+	void Device::DestroyTexture(Texture& _tex)
+	{
+		_tex.Destroy(*this);
 	}
 
 #endif // EDO_RHI_IMPLEMENTATION
