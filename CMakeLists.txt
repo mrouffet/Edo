@@ -2,6 +2,9 @@
 
 cmake_minimum_required(VERSION 3.24)
 
+# Edo's CMake tools.
+add_subdirectory(CMake)
+
 
 
 # Project
