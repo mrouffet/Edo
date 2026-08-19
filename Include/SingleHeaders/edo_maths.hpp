@@ -19,6 +19,10 @@
 	#define EDO_ASSERT(...) {}
 #endif
 
+#if !defined(EDO_MATHS_MATRIX_DEFAULT_RAW_MAJOR) && !defined(EDO_MATHS_MATRIX_DEFAULT_COLUMN_MAJOR)
+#define EDO_MATHS_MATRIX_DEFAULT_RAW_MAJOR 1
+#endif
+
 namespace edo
 {
 // ##############################################################
@@ -57,7 +61,11 @@ namespace edo
 
 
 		/// Default standard.
+#if EDO_MATHS_MATRIX_DEFAULT_RAW_MAJOR
 		Default = Row
+#elif EDO_MATHS_MATRIX_DEFAULT_COLUMN_MAJOR
+		Default = Column
+#endif
 	};
 
 	/// Shortcut alias.
