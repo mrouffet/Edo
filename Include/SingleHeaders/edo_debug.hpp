@@ -32,10 +32,10 @@
 
 	#include <Windows.h>
 
-	#define EDO_DEBUG_WIN 1
+	#define EDO_DEBUG_PLTF_WIN 1
 #else
 
-	#define EDO_DEBUG_WIN 0
+	#define EDO_DEBUG_PLTF_WIN 0
 
 #endif
 
@@ -336,7 +336,7 @@ namespace edo
 	{
 		std::wstring ConvertCStringToWString(const char* _cstr, uint64_t _size)
 		{
-		#if EDO_DEBUG_WIN
+		#if EDO_DEBUG_PLTF_WIN
 
 			// strlen does not count '\0'
 			const uint64_t srcByteSize = (_size != uint64_t(-1) ? _size : strlen(_cstr)) * sizeof(char);
@@ -364,7 +364,7 @@ namespace edo
 
 			return out;
 
-		#endif // EDO_DEBUG_WIN
+		#endif // EDO_DEBUG_PLTF_WIN
 		}
 	}
 
@@ -660,7 +660,7 @@ namespace edo
 		{
 			tm qTime; // Queried time.
 
-		#if EDO_DEBUG_WIN
+		#if EDO_DEBUG_PLTF_WIN
 			localtime_s(&qTime, &_inTime);
 		#else
 			localtime_r(&_inTime, &qTime);
@@ -1009,17 +1009,17 @@ namespace edo
 
 	namespace intl
 	{
-#if EDO_DEBUG_WIN
+#if EDO_DEBUG_PLTF_WIN
 
 		/// Windows console handle.
 		static HANDLE cslHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 
-#endif // EDO_DEBUG_WIN
+#endif // EDO_DEBUG_PLTF_WIN
 	}
 
 	void SetConsoleColor(ConsoleColor _cslColor)
 	{
-	#if EDO_DEBUG_WIN
+	#if EDO_DEBUG_PLTF_WIN
 
 		uint8_t attrib = 0u;
 
@@ -1101,7 +1101,7 @@ namespace edo
 
 		SetConsoleTextAttribute(intl::cslHandle, attrib);
 
-	#else // EDO_DEBUG_WIN
+	#else // EDO_DEBUG_PLTF_WIN
 
 		std::string attrib = "\033[";
 		const uint8_t fg = 0x07 & _cslColor; // fg bits only.
@@ -1178,7 +1178,7 @@ namespace edo
 
 		std::cout << attrib;
 
-	#endif // EDO_DEBUG_WIN
+	#endif // EDO_DEBUG_PLTF_WIN
 	}
 
 
@@ -1199,7 +1199,7 @@ namespace edo
 
 	void ConsoleLogStream::Flush()
 	{
-#if EDO_DEBUG_WIN
+#if EDO_DEBUG_PLTF_WIN
 		FlushConsoleInputBuffer(intl::cslHandle);
 #else
 		std::wcout.flush();
@@ -1210,7 +1210,7 @@ namespace edo
 	{
 		theme.SetConsoleColorFromLevel(_log.level);
 
-#if EDO_DEBUG_WIN
+#if EDO_DEBUG_PLTF_WIN
 		std::wstring msg = ToWString(_log) + L'\n';
 		WriteConsoleW(intl::cslHandle, msg.data(), static_cast<DWORD>(msg.size()), 0, NULL);
 #else

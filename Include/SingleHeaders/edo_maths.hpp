@@ -10,6 +10,23 @@
 #include <cstdint>
 #include <limits>
 
+#if __has_include(<edo_debug.hpp>)
+	#include <edo_debug.hpp>
+#else
+	#if !defined(NDEBUG) || defined(_DEBUG)
+		/// Edo Debug preprocessor.
+		#define EDO_DEBUG 1
+	#else
+		/// Edo Debug preprocessor.
+		#define EDO_DEBUG 0
+	#endif
+
+	#define EDO_LOG(...) {}
+	#define EDO_WARN(...) {}
+	#define EDO_ERROR(...) {}
+	#define EDO_ASSERT(...) {}
+#endif
+
 namespace edo
 {
 // ##############################################################
@@ -287,7 +304,7 @@ namespace edo
 	template <typename T, typename AlphaT>
 	T LerpUnclamped(const T& _start, const T& _end, AlphaT _alpha) noexcept
 	{
-		return (AlphaT(1) - _alpha) * _start + _alpha * _end;
+		return (AlphaT{ 1 } - _alpha) * _start + _alpha * _end;
 	}
 
 	/**
@@ -307,9 +324,10 @@ namespace edo
 	template <typename T, typename AlphaT>
 	T Lerp(const T& _start, const T& _end, AlphaT _alpha) noexcept
 	{
-		//SA_WARN(_alpha >= 0.0f && _alpha <= 1.0f, SA.Maths, (L"Alpha[%1] clamped to range [0, 1]! Use LerpUnclamped if intended instead.", _alpha));
+		EDO_WARN(_alpha >= AlphaT{ 0 } && _alpha <= AlphaT{ 1 }, Edo.Maths.Lerp,
+			(L"Alpha[%1] clamped to range [0, 1]! Use LerpUnclamped if intended instead.", _alpha));
 
-		return LerpUnclamped(_start, _end, std::clamp(_alpha, AlphaT(0), AlphaT(1)));
+		return LerpUnclamped(_start, _end, std::clamp(_alpha, AlphaT{ 0 }, AlphaT{ 1 }));
 	}
 
 
@@ -387,9 +405,10 @@ namespace edo
 	template <typename T, typename AlphaT>
 	T SLerp(const T& _start, const T& _end, AlphaT _alpha) noexcept
 	{
-		//SA_WARN(_alpha >= 0.0f && _alpha <= 1.0f, SA.Maths, (L"Alpha[%1] clamped to range [0, 1]! Use LerpUnclamped if intended instead.", _alpha));
+		EDO_WARN(_alpha >= AlphaT{ 0 } && _alpha <= AlphaT{ 1 }, Edo.Maths.Lerp,
+			(L"Alpha[%1] clamped to range [0, 1]! Use LerpUnclamped if intended instead.", _alpha));
 
-		return SLerpUnclamped(_start, _end, std::clamp(_alpha, AlphaT(0), AlphaT(1)));
+		return SLerpUnclamped(_start, _end, std::clamp(_alpha, AlphaT{ 0 }, AlphaT{ 1 }));
 	}
 
 // ##############################################################
@@ -399,7 +418,7 @@ namespace edo
 // #					RAD										#
 // ##############################################################
 
-/**
+	/**
 	*	\brief Maths \b Radian type.
 	* 
 	*	Handle Degree / Radian \b conversion.
@@ -540,10 +559,10 @@ namespace edo
 		*
 		*	\return new Radian result.
 		*/
-		Rad operator/(Rad _rhs) const
+		Rad operator/(Rad _rhs) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Rad, L"Divide Rad by 0 (division by 0).");
-		
+			EDO_ERROR(!Equals0(_rhs.mHandle), Edo.Maths.Rad, L"Divide Rad by 0.");
+
 			return mHandle / _rhs.mHandle;
 		}
 
@@ -551,7 +570,7 @@ namespace edo
 		*	\brief \b Scale angle.
 		*
 		*	\tparam TIn			Type of the input scale.
-		* 
+		*
 		*	\param[in] _scale	scale to apply.
 		*
 		*	\return new radian result.
@@ -566,15 +585,15 @@ namespace edo
 		*	\brief \b Unscale angle.
 		*
 		*	\tparam TIn			Type of the input scale.
-		* 
+		*
 		*	\param[in] _scale	un-scale to apply.
 		*
 		*	\return new radian result.
 		*/
 		template <typename TIn>
-		Rad operator/(TIn _scale) const
+		Rad operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Rad, L"Unscale Rad by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Rad, L"Divide Rad by 0.");
 
 			return Rad(static_cast<T>(mHandle / _scale));
 		}
@@ -629,9 +648,9 @@ namespace edo
 		*
 		*	\return self Radian.
 		*/
-		Rad& operator/=(Rad _rhs)
+		Rad& operator/=(Rad _rhs) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Rad, L"Divide Rad by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_rhs.mHandle), Edo.Maths.Rad, L"Divide Rad by 0.");
 
 			mHandle /= _rhs.mHandle;
 
@@ -665,9 +684,9 @@ namespace edo
 		*	\return this radian unscaled.
 		*/
 		template <typename TIn>
-		Rad& operator/=(TIn _scale)
+		Rad& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Rad, L"Unscale Rad by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Rad, L"Divide Rad by 0.");
 
 			mHandle /= _scale;
 
@@ -760,7 +779,7 @@ namespace edo
 // #					DEG										#
 // ##############################################################
 
-/**
+	/**
 	*	\brief Maths \b Degree type.
 	* 
 	*	Handle Degree / Radian \b conversion.
@@ -900,9 +919,9 @@ namespace edo
 		*
 		*	\return new degree result.
 		*/
-		Deg operator/(Deg _rhs) const
+		Deg operator/(Deg _rhs) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Deg, L"Ddivide Deg by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_rhs.mHandle), Edo.Maths.Deg, L"Divide Deg by 0.");
 
 			return mHandle / _rhs.mHandle;
 		}
@@ -932,9 +951,9 @@ namespace edo
 		*	\return new degree result.
 		*/
 		template <typename TIn>
-		Deg operator/(TIn _scale) const
+		Deg operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Deg, L"Unscale Deg by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Deg, L"Divide Deg by 0.");
 
 			return Deg(static_cast<T>(mHandle / _scale));
 		}
@@ -989,9 +1008,9 @@ namespace edo
 		*
 		*	\return self degree.
 		*/
-		Deg& operator/=(Deg _rhs)
+		Deg& operator/=(Deg _rhs) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Deg, L"Divide Deg by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_rhs.mHandle), Edo.Maths.Deg, L"Divide Deg by 0.");
 
 			mHandle /= _rhs.mHandle;
 
@@ -1025,9 +1044,9 @@ namespace edo
 		*	\return this degree unscaled.
 		*/
 		template <typename TIn>
-		Deg& operator/=(TIn _scale)
+		Deg& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Deg, L"Unscale Deg by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Deg, L"Divide Deg by 0.");
 
 			mHandle /= _scale;
 
@@ -1314,7 +1333,7 @@ namespace edo
 		*/
 		T& operator[](uint32_t _index)
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 1u), SA.Maths);
+			EDO_ASSERT(_index < 2u, Edo.Maths.Vec2, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -1328,7 +1347,7 @@ namespace edo
 		*/
 		const T& operator[](uint32_t _index) const
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 1u), SA.Maths);
+			EDO_ASSERT(_index < 2u, Edo.Maths.Vec2, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -1346,8 +1365,6 @@ namespace edo
 		T Length() const
 		{
 			const T l2 = SqrLength();
-
-			//SA_ASSERT((Default, _in >= T(0)), SA.Maths, (L"Compute square root of negative number: [%1]", _in));
 
 			return std::sqrt(l2);
 		}
@@ -1368,9 +1385,11 @@ namespace edo
 		*
 		*	\return self vector normalized.
 		*/
-		Vec2& Normalize()
+		Vec2& Normalize() noexcept
 		{
 			const T norm = Length();
+
+			EDO_ERROR(!Equals0(norm), Edo.Maths.Vec2, L"Normalize null vector!");
 
 			x /= norm;
 			y /= norm;
@@ -1383,7 +1402,7 @@ namespace edo
 		*
 		*	\return new normalized vector.
 		*/
-		Vec2 GetNormalized() const
+		Vec2 GetNormalized() const noexcept
 		{
 			Vec2 res = *this;
 			res.Normalize();
@@ -1448,7 +1467,8 @@ namespace edo
 		*/
 		Vec2 ProjectOnToNormal(const Vec2& _normal) const noexcept
 		{
-			//SA_WARN(_normal.IsNormalized(), SA.Maths.Vec2, L"Normal should be normalized or use ProjectOnTo() instead!");
+			EDO_WARN(_normal.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Vec2,
+				L"Normal should be normalized or use ProjectOnTo() instead!");
 
 			return Dot(*this, _normal) * _normal;
 		}
@@ -1540,7 +1560,7 @@ namespace edo
 		*
 		*	\return <b> Distance </b> between _start and _end.
 		*/
-		static constexpr T Dist(const Vec2& _start, const Vec2& _end)
+		static constexpr T Dist(const Vec2& _start, const Vec2& _end) noexcept
 		{
 			return (_start - _end).Length();
 		}
@@ -1581,7 +1601,7 @@ namespace edo
 		*
 		*	\return <b> Normalized Direction </b> from _start to _end.
 		*/
-		static constexpr Vec2 DirN(const Vec2& _start, const Vec2& _end)
+		static constexpr Vec2 DirN(const Vec2& _start, const Vec2& _end) noexcept
 		{
 			return Dir(_start, _end).GetNormalized();
 		}
@@ -1725,9 +1745,9 @@ namespace edo
 		*	\return new vector inverse-scaled.
 		*/
 		template <typename TIn>
-		Vec2 operator/(TIn _scale) const
+		Vec2 operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Vec2, L"Unscale vector by 0!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Vec2, L"Divide vector by 0!");
 
 			return Vec2(
 				x / _scale,
@@ -1778,10 +1798,10 @@ namespace edo
 		*
 		*	\return new vector result.
 		*/
-		Vec2 operator/(const Vec2& _rhs) const
+		Vec2 operator/(const Vec2& _rhs) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec2, L"Divide X Axis value is 0!");
-			//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec2, L"Divide Y Axis value is 0!");
+			EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec2, L"Divide X Axis by 0!");
+			EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec2, L"Divide Y Axis by 0!");
 
 			return Vec2(x / _rhs.x, y / _rhs.y);
 		}
@@ -1839,9 +1859,9 @@ namespace edo
 		*	\return self vector inverse-scaled.
 		*/
 		template <typename TIn>
-		Vec2& operator/=(TIn _scale)
+		Vec2& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Vec2, L"Unscale vector by 0!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Vec2, L"Divide vector by 0!");
 
 			x /= _scale;
 			y /= _scale;
@@ -1901,10 +1921,10 @@ namespace edo
 		*
 		*	\return self vector result.
 		*/
-		Vec2& operator/=(const Vec2& _rhs)
+		Vec2& operator/=(const Vec2& _rhs) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec2, L"Divide X Axis value is 0!");
-			//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec2, L"Divide Y Axis value is 0!");
+			EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec2, L"Divide X Axis by 0!");
+			EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec2, L"Divide Y Axis by 0!");
 
 			x /= _rhs.x;
 			y /= _rhs.y;
@@ -1966,10 +1986,10 @@ namespace edo
 	*	\return new vector inverse-scaled.
 	*/
 	template <typename T, typename TIn>
-	Vec2<T> operator/(TIn _lhs, const Vec2<T>& _rhs)
+	Vec2<T> operator/(TIn _lhs, const Vec2<T>& _rhs) noexcept
 	{
-		//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec2, L"Inverse scale X Axis by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec2, L"Inverse scale Y Axis by 0!");
+		EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec2, L"Inverse scale X Axis by 0!");
+		EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec2, L"Inverse scale Y Axis by 0!");
 
 		return Vec2<T>(
 			_lhs / _rhs.x,
@@ -2244,7 +2264,7 @@ namespace edo
 		*/
 		T& operator[](uint32_t _index)
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 2u), SA.Maths);
+			EDO_ASSERT(_index < 3u, Edo.Maths.Vec3, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -2258,7 +2278,7 @@ namespace edo
 		*/
 		const T& operator[](uint32_t _index) const
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 2u), SA.Maths);
+			EDO_ASSERT(_index < 3u, Edo.Maths.Vec3, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -2273,11 +2293,9 @@ namespace edo
 		*
 		*	\return Length of this vector.
 		*/
-		constexpr T Length() const
+		constexpr T Length() const noexcept
 		{
 			const T l2 = SqrLength();
-
-			// TODO: ASSERT
 
 			return std::sqrt(l2);
 		}
@@ -2297,11 +2315,11 @@ namespace edo
 		*
 		*	\return self vector normalized.
 		*/
-		Vec3& Normalize()
+		Vec3& Normalize() noexcept
 		{
-			//SA_ASSERT((NotEquals, *this, Zero), SA.Maths.Vec3, L"Normalize null vector!");
-
 			const T norm = Length();
+			
+			EDO_ERROR(!Equals0(norm), Edo.Maths.Vec3, L"Normalize null vector!");
 
 			x /= norm;
 			y /= norm;
@@ -2315,7 +2333,7 @@ namespace edo
 		*
 		*	\return new normalized vector.
 		*/
-		Vec3 GetNormalized() const
+		Vec3 GetNormalized() const noexcept
 		{
 			Vec3 res = *this;
 			res.Normalize();
@@ -2380,7 +2398,8 @@ namespace edo
 		*/
 		Vec3 ProjectOnToNormal(const Vec3& _normal) const noexcept
 		{
-			//SA_WARN(_normal.IsNormalized(), SA.Maths.Vec3, L"Normal should be normalized or use ProjectOnTo() instead!");
+			EDO_WARN(_normal.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Vec3,
+				L"Normal should be normalized or use ProjectOnTo() instead!");
 
 			return Dot(*this, _normal) * _normal;
 		}
@@ -2474,7 +2493,7 @@ namespace edo
 		*
 		*	\return <b> Distance </b> between _start and _end.
 		*/
-		static constexpr T Dist(const Vec3& _start, const Vec3& _end)
+		static constexpr T Dist(const Vec3& _start, const Vec3& _end) noexcept
 		{
 			return (_start - _end).Length();
 		}
@@ -2515,7 +2534,7 @@ namespace edo
 		*
 		*	\return <b> Normalized Direction </b> from _start to _end.
 		*/
-		static constexpr Vec3 DirN(const Vec3& _start, const Vec3& _end)
+		static constexpr Vec3 DirN(const Vec3& _start, const Vec3& _end) noexcept
 		{
 			return Dir(_start, _end).GetNormalized();
 		}
@@ -2660,9 +2679,9 @@ namespace edo
 		*	\return new vector inverse-scaled.
 		*/
 		template <typename TIn>
-		Vec3 operator/(TIn _scale) const
+		Vec3 operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Vec3, L"Unscale vector by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Vec3, L"Divide vector by 0!");
 
 			return Vec3(
 				x / _scale,
@@ -2726,11 +2745,11 @@ namespace edo
 		*
 		*	\return new vector result.
 		*/
-		Vec3 operator/(const Vec3& _rhs) const
+		Vec3 operator/(const Vec3& _rhs) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec3, L"Divide X Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec3, L"Divide Y Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Vec3, L"Divide Z Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec3, L"Divide X Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec3, L"Divide Y Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec3, L"Divide Z Axis value by 0!");
 
 			return Vec3(
 				x / _rhs.x,
@@ -2793,9 +2812,9 @@ namespace edo
 		*	\return self vector inverse-scaled.
 		*/
 		template <typename TIn>
-		Vec3& operator/=(TIn _scale)
+		Vec3& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Vec3, L"Unscale vector by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Vec3, L"Divide vector by 0!");
 
 			x /= _scale;
 			y /= _scale;
@@ -2859,11 +2878,11 @@ namespace edo
 		*
 		*	\return self vector result.
 		*/
-		Vec3& operator/=(const Vec3& _rhs)
+		Vec3& operator/=(const Vec3& _rhs) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec3, L"Divide X Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec3, L"Divide Y Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Vec3, L"Divide Z Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec3, L"Divide X Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec3, L"Divide Y Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec3, L"Divide Z Axis value by 0!");
 
 			x /= _rhs.x;
 			y /= _rhs.y;
@@ -2932,11 +2951,11 @@ namespace edo
 	*	\return new vector inverse-scaled.
 	*/
 	template <typename T, typename TIn>
-	Vec3<T> operator/(TIn _lhs, const Vec3<T>& _rhs)
+	Vec3<T> operator/(TIn _lhs, const Vec3<T>& _rhs) noexcept
 	{
-		//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec3, L"Divide X Axis value by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec3, L"Divide Y Axis value by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Vec3, L"Divide Z Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec3, L"Inverse scale X Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec3, L"Inverse scale Y Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec3, L"Inverse scale Z Axis value by 0!");
 
 		return Vec3<T>(
 			_lhs / _rhs.x,
@@ -3212,7 +3231,7 @@ namespace edo
 		*/
 		T& operator[](uint32_t _index)
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 3u), SA.Maths);
+			EDO_ASSERT(_index < 4u, Edo.Maths.Vec4, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -3226,7 +3245,7 @@ namespace edo
 		*/
 		const T& operator[](uint32_t _index) const
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 3u), SA.Maths);
+			EDO_ASSERT(_index < 4u, Edo.Maths.Vec4, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -3291,9 +3310,9 @@ namespace edo
 		*	\return new vector inverse-scaled.
 		*/
 		template <typename TIn>
-		Vec4 operator/(TIn _scale) const
+		Vec4 operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Vec4, L"Unscale vector by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Vec4, L"Divide vector by 0!");
 
 			return Vec4(
 				x / _scale,
@@ -3361,12 +3380,12 @@ namespace edo
 		*
 		*	\return new vector result.
 		*/
-		Vec4 operator/(const Vec4& _rhs) const
+		Vec4 operator/(const Vec4& _rhs) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec4, L"Divide X Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec4, L"Divide Y Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Vec4, L"Divide Z Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.w), SA.Maths.Vec4, L"Divide Z Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec4, L"Divide X Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec4, L"Divide Y Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec4, L"Divide Z Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.w), Edo.Maths.Vec4, L"Divide W Axis value by 0!");
 
 			return Vec4(
 				x / _rhs.x,
@@ -3407,9 +3426,9 @@ namespace edo
 		*	\return self vector inverse-scaled.
 		*/
 		template <typename TIn>
-		Vec4& operator/=(TIn _scale)
+		Vec4& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Vec4, L"Unscale vector by 0 (division by 0).");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Vec4, L"Divide vector by 0!");
 
 			x /= _scale;
 			y /= _scale;
@@ -3477,12 +3496,12 @@ namespace edo
 		*
 		*	\return self vector result.
 		*/
-		Vec4& operator/=(const Vec4& _rhs)
+		Vec4& operator/=(const Vec4& _rhs) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec4, L"Divide X Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec4, L"Divide Y Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Vec4, L"Divide Z Axis value by 0!");
-			//SA_ASSERT((NotEquals0, _rhs.w), SA.Maths.Vec4, L"Divide Z Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec4, L"Divide X Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec4, L"Divide Y Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec4, L"Divide Z Axis value by 0!");
+			EDO_ERROR(!Equals0(_rhs.w), Edo.Maths.Vec4, L"Divide W Axis value by 0!");
 
 			x /= _rhs.x;
 			y /= _rhs.y;
@@ -3522,12 +3541,12 @@ namespace edo
 	*	\return new vector inverse-scaled.
 	*/
 	template <typename T, typename TIn>
-	Vec4<T> operator/(TIn _lhs, const Vec4<T>& _rhs)
+	Vec4<T> operator/(TIn _lhs, const Vec4<T>& _rhs) noexcept
 	{
-		//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Vec4, L"Divide X Axis value by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Vec4, L"Divide Y Axis value by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Vec4, L"Divide Z Axis value by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.w), SA.Maths.Vec4, L"Divide Z Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec4, L"Inverse scale X Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec4, L"Inverse scale Y Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec4, L"Inverse scale Z Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.w), Edo.Maths.Vec4, L"Inverse scale W Axis value by 0!");
 
 		return Vec4<T>(
 			_lhs / _rhs.x,
@@ -3671,7 +3690,7 @@ namespace edo
 
 			w = Cos(halfAngle);
 
-			//SA_WARN(_axis.IsNormalized(), SA.Maths.Quat, L"Axis should be normalized!");
+			EDO_WARN(_axis.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat, L"Axis should be normalized!");
 
 			// Quaternion imaginary axis.
 			Vec3<T>& imgAxis = ImgAxis();
@@ -3785,7 +3804,7 @@ namespace edo
 		*/
 		T& operator[](uint32_t _index)
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 3u), SA.Maths);
+			EDO_ASSERT(_index < 4u, Edo.Maths.Quat, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -3799,7 +3818,7 @@ namespace edo
 		*/
 		T operator[](uint32_t _index) const
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 3u), SA.Maths);
+			EDO_ASSERT(_index < 4u, Edo.Maths.Quat, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -3814,11 +3833,9 @@ namespace edo
 		*
 		*	\return Length of this quaternion.
 		*/
-		T Length() const
+		T Length() const noexcept
 		{
 			const T l2 = SqrLength();
-
-			// TODO: ASSERT
 
 			return std::sqrt(l2);
 		}
@@ -3839,11 +3856,11 @@ namespace edo
 		*
 		*	\return self quaternion normalized.
 		*/
-		Quat& Normalize()
+		Quat& Normalize() noexcept
 		{
-			//SA_ASSERT((NotEquals, *this, Zero), SA.Maths.Quat, L"Normalize null quaternion!");
-
 			const T norm = Length();
+
+			EDO_ERROR(!Equals0(norm), Edo.Maths.Quat, L"Normalize null quaternion!");
 
 			w /= norm;
 			x /= norm;
@@ -3858,11 +3875,11 @@ namespace edo
 		*
 		*	\return new normalized quaternion.
 		*/
-		Quat GetNormalized() const
+		Quat GetNormalized() const noexcept
 		{
-			//SA_ASSERT((NotEquals, *this, Zero), SA.Maths.Quat, L"Normalize null quaternion!");
-
 			const T norm = Length();
+
+			EDO_ERROR(!Equals0(norm), Edo.Maths.Quat, L"Normalize null quaternion!");
 
 			return Quat(
 				w / norm,
@@ -3897,7 +3914,7 @@ namespace edo
 		*/
 		Quat& Inverse() noexcept
 		{
-			//SA_WARN(IsNormalized(), SA.Maths.Quat, L"Quaternion should be normalized!");
+			EDO_WARN(IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat, L"Quaternion should be normalized!");
 
 			// Inverse of normalized quaternion is conjugate.
 
@@ -3916,7 +3933,7 @@ namespace edo
 		*/
 		constexpr Quat GetInversed() const noexcept
 		{
-			//SA_WARN(IsNormalized(), SA.Maths.Quat, L"Quaternion should be normalized!");
+			EDO_WARN(IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat, L"Quaternion should be normalized!");
 
 			// Inverse of normalized quaternion is conjugate.
 
@@ -3969,7 +3986,7 @@ namespace edo
 		*/
 		constexpr Vec3<T> GetAxis() const noexcept
 		{
-			//SA_WARN(IsIdentity(), SA.Maths.Quat, L"Get axis of an idendity quaternion (Vec3::Zero).");
+			EDO_WARN(!IsIdentity(), Edo.Maths.Quat, L"Get axis of an idendity quaternion (Vec3::Zero).");
 
 			const Rad<T> halfAngle = ACos(w);
 
@@ -3993,8 +4010,10 @@ namespace edo
 		*/
 		Quat<T> Rotate(const Quat<T>& _other) const noexcept
 		{
-			//SA_WARN(IsNormalized(), SA.Maths.Quat, L"Quaternion should be normalized for multiplication. This quaternion is not normalized!");
-			//SA_WARN(_other.IsNormalized(), SA.Maths.Quat, L"Quaternion should be normalized for multiplication. Other quaternion is not normalized!");
+			EDO_WARN(IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `this` quaternion is not normalized!");
+			EDO_WARN(_other.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `other` quaternion is not normalized!");
 
 			T resW = w * _other.w - x * _other.x - y * _other.y - z * _other.z;
 			T resX = w * _other.x + x * _other.w + y * _other.z - z * _other.y;
@@ -4016,7 +4035,8 @@ namespace edo
 		*/
 		constexpr Vec3<T> Rotate(const Vec3<T>& _vec) const noexcept
 		{
-			//SA_WARN(IsNormalized(), SA.Maths.Quat, L"Quaternion should be normalized for multiplication. This quaternion is not normalized!");
+			EDO_WARN(IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `this` quaternion is not normalized!");
 
 			// Quaternion-vector multiplication optimization:
 			// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
@@ -4282,8 +4302,10 @@ namespace edo
 		template<typename AlphaT = T>
 		static Quat Lerp(const Quat& _start, const Quat& _end, AlphaT _alpha)
 		{
-			//SA_WARN(_start.IsNormalized(), SA.Maths.Quat, L"_start quaternion should be normalized!");
-			//SA_WARN(_end.IsNormalized(), SA.Maths.Quat, L"_end quaternion should be normalized!");
+			EDO_WARN(_start.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `start` quaternion is not normalized!");
+			EDO_WARN(_end.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `end` quaternion is not normalized!");
 
 			return edo::Lerp(_start, _end, _alpha).GetNormalized();
 		}
@@ -4306,8 +4328,10 @@ namespace edo
 		template<typename AlphaT = T>
 		static Quat LerpUnclamped(const Quat& _start, const Quat& _end, AlphaT _alpha)
 		{
-			//SA_WARN(_start.IsNormalized(), SA.Maths.Quat, L"_start quaternion should be normalized!");
-			//SA_WARN(_end.IsNormalized(), SA.Maths.Quat, L"_end quaternion should be normalized!");
+			EDO_WARN(_start.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `start` quaternion is not normalized!");
+			EDO_WARN(_end.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `end` quaternion is not normalized!");
 
 			return edo::LerpUnclamped(_start, _end, _alpha).GetNormalized();
 		}
@@ -4330,8 +4354,10 @@ namespace edo
 		template<typename AlphaT = T>
 		static Quat SLerp(const Quat& _start, const Quat& _end, AlphaT _alpha)
 		{
-			//SA_WARN(_start.IsNormalized(), SA.Maths.Quat, L"_start quaternion should be normalized!");
-			//SA_WARN(_end.IsNormalized(), SA.Maths.Quat, L"_end quaternion should be normalized!");
+			EDO_WARN(_start.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `start` quaternion is not normalized!");
+			EDO_WARN(_end.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `end` quaternion is not normalized!");
 
 			return edo::SLerp(_start, _end, _alpha).GetNormalized();
 		}
@@ -4354,8 +4380,10 @@ namespace edo
 		template<typename AlphaT = T>
 		static Quat SLerpUnclamped(const Quat& _start, const Quat& _end, AlphaT _alpha)
 		{
-			//SA_WARN(_start.IsNormalized(), SA.Maths.Quat, L"_start quaternion should be normalized!");
-			//SA_WARN(_end.IsNormalized(), SA.Maths.Quat, L"_end quaternion should be normalized!");
+			EDO_WARN(_start.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `start` quaternion is not normalized!");
+			EDO_WARN(_end.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Quat,
+				L"Quaternion should be normalized for multiplication. `end` quaternion is not normalized!");
 
 			return edo::SLerpUnclamped(_start, _end, _alpha).GetNormalized();
 		}
@@ -4414,9 +4442,9 @@ namespace edo
 		*
 		*	\return new quaternion inverse-scaled.
 		*/
-		Quat operator/(T _scale) const
+		Quat operator/(T _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Quat, L"Unscale quaternion by 0 (division by 0)!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Quat, L"Divide quaternion by 0!");
 
 			return Quat(
 				w / _scale,
@@ -4558,9 +4586,9 @@ namespace edo
 		*
 		*	\return self quaternion inverse-scaled.
 		*/
-		Quat& operator/=(T _scale)
+		Quat& operator/=(T _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths.Quat, L"Unscale quaternion by 0 (division by 0)!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Quat, L"Divide quaternion by 0!");
 
 			w /= _scale;
 			x /= _scale;
@@ -4672,10 +4700,10 @@ namespace edo
 	template <typename T>
 	Quat<T> operator/(typename std::remove_cv<T>::type _lhs, const Quat<T>& _rhs)
 	{
-		//SA_ASSERT((NotEquals0, _rhs.w), SA.Maths.Quat, L"Inverse scale W by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.x), SA.Maths.Quat, L"Inverse scale X Axis by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.y), SA.Maths.Quat, L"Inverse scale Y Axis by 0!");
-		//SA_ASSERT((NotEquals0, _rhs.z), SA.Maths.Quat, L"Inverse scale Z Axis by 0!");
+		EDO_ERROR(!Equals0(_rhs.w), Edo.Maths.Vec4, L"Inverse scale W value by 0!");
+		EDO_ERROR(!Equals0(_rhs.x), Edo.Maths.Vec4, L"Inverse scale X Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.y), Edo.Maths.Vec4, L"Inverse scale Y Axis value by 0!");
+		EDO_ERROR(!Equals0(_rhs.z), Edo.Maths.Vec4, L"Inverse scale Z Axis value by 0!");
 
 		return Quat<T>(
 			_lhs / _rhs.w,
@@ -5012,7 +5040,7 @@ namespace edo
 		*/
 		T& At(uint32_t _index)
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 8u), SA / Maths);
+			EDO_ASSERT(_index < 9u, Edo.Maths.Mat3, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -5026,7 +5054,7 @@ namespace edo
 		*/
 		const T& At(uint32_t _index) const
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 8u), SA / Maths);
+			EDO_ASSERT(_index < 9u, Edo.Maths.Mat3, L"Index access out of range!");
 
 			return Data()[_index];
 		}
@@ -5041,8 +5069,8 @@ namespace edo
 		*/
 		T& At(uint32_t _x, uint32_t _y)
 		{
-			//SA_ASSERT((OutOfRange, _x, 0u, 3u), SA / Maths);
-			//SA_ASSERT((OutOfRange, _y, 0u, 3u), SA / Maths);
+			EDO_ASSERT(_x < 3u, Edo.Maths.Mat3, L"Index X access out of range!");
+			EDO_ASSERT(_y < 3u, Edo.Maths.Mat3, L"Index Y access out of range!");
 
 			return Data()[_x * 3u + _y];
 		}
@@ -5057,8 +5085,8 @@ namespace edo
 		*/
 		const T& At(uint32_t _x, uint32_t _y) const
 		{
-			//SA_ASSERT((OutOfRange, _x, 0u, 3u), SA / Maths);
-			//SA_ASSERT((OutOfRange, _y, 0u, 3u), SA / Maths);
+			EDO_ASSERT(_x < 3u, Edo.Maths.Mat3, L"Index X access out of range!");
+			EDO_ASSERT(_y < 3u, Edo.Maths.Mat3, L"Index Y access out of range!");
 
 			return Data()[_x * 3u + _y];
 		}
@@ -5146,7 +5174,7 @@ namespace edo
 		*
 		*	\return self inversed matrix.
 		*/
-		Mat3& Inverse()
+		Mat3& Inverse() noexcept
 		{
 			return *this = GetInversed();
 		}
@@ -5156,13 +5184,13 @@ namespace edo
 		*
 		*	\return new inversed matrix.
 		*/
-		Mat3 GetInversed() const
+		Mat3 GetInversed() const noexcept
 		{
 			const T det = Determinant();
 
-			//SA_ASSERT((NotEquals0, det), SA.Maths, L"Determinant must be != 0 to compute inverse matrix");
+			EDO_ERROR(!Equals0(det), Edo.Maths.Mat3, L"Determinant must be != 0 to compute inverse matrix");
 
-			return (T(1) / det) * Mat3(
+			return (T{ 1 } / det) * Mat3(
 				e11 * e22 - e21 * e12, e02 * e21 - e01 * e22, e01 * e12 - e11 * e02,
 				e12 * e20 - e10 * e22, e00 * e22 - e20 * e02, e02 * e10 - e00 * e12,
 				e10 * e21 - e20 * e11, e01 * e20 - e00 * e21, e00 * e11 - e10 * e01
@@ -5226,7 +5254,7 @@ namespace edo
 		*/
 		static Mat3 MakeRotation(const Quat<T>& _rot) noexcept
 		{
-			//SA_WARN(_rot.IsNormalized(), SA.Maths, L"Quaternion should be normalized!");
+			EDO_WARN(_rot.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Mat3, L"Quaternion should be normalized!");
 
 			// Sources: https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
 
@@ -5341,9 +5369,9 @@ namespace edo
 		*	\return new matrix inverse-scaled.
 		*/
 		template <typename TIn>
-		Mat3 operator/(TIn _scale) const
+		Mat3 operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths, L"Unscale matrix by 0 (division by 0)!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Mat3, L"Divide matrix by 0!");
 
 			return Mat3(
 				static_cast<T>(e00 / _scale), static_cast<T>(e01 / _scale), static_cast<T>(e02 / _scale),
@@ -5415,7 +5443,7 @@ namespace edo
 		*
 		*	\return new matrix result.
 		*/
-		Mat3 operator/(const Mat3& _rhs) const
+		Mat3 operator/(const Mat3& _rhs) const noexcept
 		{
 			return *this * _rhs.GetInversed();
 		}
@@ -5475,9 +5503,9 @@ namespace edo
 		*	\return self matrix inverse-scaled.
 		*/
 		template <typename TIn>
-		Mat3& operator/=(TIn _scale)
+		Mat3& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths, L"Unscale matrix by 0 (division by 0)!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Mat3, L"Divide matrix by 0!");
 
 			e00 /= _scale;
 			e01 /= _scale;
@@ -5561,7 +5589,7 @@ namespace edo
 		*
 		*	\return self matrix result.
 		*/
-		Mat3& operator/=(const Mat3& _rhs)
+		Mat3& operator/=(const Mat3& _rhs) noexcept
 		{
 			return *this = *this / _rhs;
 		}
@@ -5618,18 +5646,17 @@ namespace edo
 	*	\return new matrix inverse-scaled.
 	*/
 	template <typename T, MatrixMajor major, typename TIn>
-	Mat3<T, major> operator/(TIn _lhs, const Mat3<T, major>& _rhs)
+	Mat3<T, major> operator/(TIn _lhs, const Mat3<T, major>& _rhs) noexcept
 	{
-		//SA_ASSERT((NotEquals0, _rhs.e00), SA.Maths.Mat3, L"Inverse scale matrix e00 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e01), SA.Maths.Mat3, L"Inverse scale matrix e01 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e02), SA.Maths.Mat3, L"Inverse scale matrix e02 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e10), SA.Maths.Mat3, L"Inverse scale matrix e10 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e11), SA.Maths.Mat3, L"Inverse scale matrix e11 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e12), SA.Maths.Mat3, L"Inverse scale matrix e12 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e20), SA.Maths.Mat3, L"Inverse scale matrix e20 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e21), SA.Maths.Mat3, L"Inverse scale matrix e21 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e22), SA.Maths.Mat3, L"Inverse scale matrix e22 == 0!");
-
+		EDO_ERROR(!Equals0(_rhs.e00), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e01), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e02), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e10), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e11), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e12), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e20), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e21), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e22), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
 
 		return Mat3<T>(
 			_lhs / _rhs.e00, _lhs / _rhs.e01, _lhs / _rhs.e02,
@@ -5982,7 +6009,7 @@ namespace edo
 		*/
 		T& At(uint32_t _index)
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 15u), SA.Maths);
+			EDO_ASSERT(_index < 16u, Edo.Maths.Mat4, L"Index access out of range!");
 
 			return Data()[_index];
 
@@ -5997,7 +6024,7 @@ namespace edo
 		*/
 		const T& At(uint32_t _index) const
 		{
-			//SA_ASSERT((OutOfRange, _index, 0u, 15u), SA.Maths);
+			EDO_ASSERT(_index < 16u, Edo.Maths.Mat4, L"Index access out of range!");
 
 			return Data()[_index];
 
@@ -6013,8 +6040,8 @@ namespace edo
 		*/
 		T& At(uint32_t _x, uint32_t _y)
 		{
-			//SA_ASSERT((OutOfRange, _x, 0u, 4u), SA.Maths);
-			//SA_ASSERT((OutOfRange, _y, 0u, 4u), SA.Maths);
+			EDO_ASSERT(_x < 4u, Edo.Maths.Mat4, L"Index X access out of range!");
+			EDO_ASSERT(_y < 4u, Edo.Maths.Mat4, L"Index Y access out of range!");
 
 			return Data()[_x * 4u + _y];
 		}
@@ -6029,8 +6056,8 @@ namespace edo
 		*/
 		const T& At(uint32_t _x, uint32_t _y) const
 		{
-			//SA_ASSERT((OutOfRange, _x, 0u, 4u), SA.Maths);
-			//SA_ASSERT((OutOfRange, _y, 0u, 4u), SA.Maths);
+			EDO_ASSERT(_x < 4u, Edo.Maths.Mat4, L"Index X access out of range!");
+			EDO_ASSERT(_y < 4u, Edo.Maths.Mat4, L"Index Y access out of range!");
 
 			return Data()[_x * 4u + _y];
 		}
@@ -6130,7 +6157,7 @@ namespace edo
 		*
 		*	\return self inversed matrix.
 		*/
-		Mat4& Inverse()
+		Mat4& Inverse()  noexcept
 		{
 			return *this = GetInversed();
 		}
@@ -6140,11 +6167,11 @@ namespace edo
 		*
 		*	\return new inversed matrix.
 		*/
-		Mat4 GetInversed() const
+		Mat4 GetInversed() const noexcept
 		{
 			const T det = Determinant();
 
-			//SA_ASSERT((NotEquals0, det), SA.Maths, L"Determinant must be != 0 to compute inverse matrix");
+			EDO_ERROR(!Equals0(det), Edo.Maths.Mat4, L"Determinant must be != 0 to compute inverse matrix");
 
 			Mat4 result;
 
@@ -6410,7 +6437,7 @@ namespace edo
 		*/
 		static Mat4 MakeRotation(const Quat<T>& _rot) noexcept
 		{
-			//SA_WARN(_rotation.IsNormalized(), SA.Maths, L"Quaternion should be normalized!");
+			EDO_WARN(_rot.IsNormalized(5 * std::numeric_limits<T>::epsilon()), Edo.Maths.Mat4, L"Quaternion should be normalized!");
 
 			// Sources: https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
 
@@ -6461,7 +6488,7 @@ namespace edo
 		 *
 		 * 	\returns LookAt matrix.
 		*/
-		static Mat4 MakeLookAt(const Vec3<T>& _eye, const Vec3<T>& _target, const Vec3<T>& _up)
+		static Mat4 MakeLookAt(const Vec3<T>& _eye, const Vec3<T>& _target, const Vec3<T>& _up) noexcept
 		{
 			const Vec3<T> forward = (_target - _eye).Normalize();
 
@@ -6488,7 +6515,7 @@ namespace edo
 		 * 
 		 * @return Inverse View matrix. 
 		 */
-		static Mat4 MakeInverseView(const Vec3<T>& _eye, const Vec3<T>& _forward, const Vec3<T>& _up)
+		static Mat4 MakeInverseView(const Vec3<T>& _eye, const Vec3<T>& _forward, const Vec3<T>& _up) noexcept
 		{
 			const Vec3<T> right = Vec3<T>::Cross(_up, _forward).Normalize();
 
@@ -6518,6 +6545,8 @@ namespace edo
 		*/
 		static Mat4 MakePerspective(Deg<T> _fov = T(90.0), T _aspect = T(1.0), T _near = T(0.35), T _far = T(10.0)) noexcept
 		{
+			EDO_ERROR(!Equals0(_far - _near), Edo.Maths.Mat4, L"(far - near) produces division by 0!");
+
 			const T focalLength = T(1) / Tan(_fov / T(2));
 
 			/**
@@ -6617,9 +6646,9 @@ namespace edo
 		*	\return new matrix inverse-scaled.
 		*/
 		template <typename TIn>
-		Mat4 operator/(TIn _scale) const
+		Mat4 operator/(TIn _scale) const noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths, L"Unscale matrix by 0 (division by 0)!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Mat4, L"Divide matrix by 0!");
 
 			return Mat4(
 				static_cast<T>(e00 / _scale), static_cast<T>(e01 / _scale), static_cast<T>(e02 / _scale), static_cast<T>(e03 / _scale),
@@ -6702,7 +6731,7 @@ namespace edo
 		*
 		*	\return new matrix result.
 		*/
-		Mat4 operator/(const Mat4& _rhs) const
+		Mat4 operator/(const Mat4& _rhs) const noexcept
 		{
 			return *this * _rhs.GetInversed();
 		}
@@ -6789,9 +6818,9 @@ namespace edo
 		*	\return self matrix inverse-scaled.
 		*/
 		template <typename TIn>
-		Mat4& operator/=(TIn _scale)
+		Mat4& operator/=(TIn _scale) noexcept
 		{
-			//SA_ASSERT((NotEquals0, _scale), SA.Maths, L"Unscale matrix by 0 (division by 0)!");
+			EDO_ERROR(!Equals0(_scale), Edo.Maths.Mat4, L"Divide matrix by 0!");
 
 			e00 /= _scale;
 			e01 /= _scale;
@@ -6899,7 +6928,7 @@ namespace edo
 		*
 		*	\return self matrix result.
 		*/
-		Mat4& operator/=(const Mat4& _rhs)
+		Mat4& operator/=(const Mat4& _rhs) noexcept
 		{
 			return *this = *this / _rhs;
 		}
@@ -6960,22 +6989,22 @@ namespace edo
 	template <typename T, MatrixMajor major, typename TIn>
 	Mat4<T, major> operator/(TIn _lhs, const Mat4<T, major>& _rhs)
 	{
-		//SA_ASSERT((NotEquals0, _rhs.e00), SA.Maths, L"Inverse scale matrix e00 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e01), SA.Maths, L"Inverse scale matrix e01 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e02), SA.Maths, L"Inverse scale matrix e02 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e03), SA.Maths, L"Inverse scale matrix e03 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e10), SA.Maths, L"Inverse scale matrix e10 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e11), SA.Maths, L"Inverse scale matrix e11 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e12), SA.Maths, L"Inverse scale matrix e12 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e13), SA.Maths, L"Inverse scale matrix e13 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e20), SA.Maths, L"Inverse scale matrix e20 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e21), SA.Maths, L"Inverse scale matrix e21 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e22), SA.Maths, L"Inverse scale matrix e22 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e23), SA.Maths, L"Inverse scale matrix e23 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e30), SA.Maths, L"Inverse scale matrix e30 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e31), SA.Maths, L"Inverse scale matrix e31 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e32), SA.Maths, L"Inverse scale matrix e32 == 0!");
-		//SA_ASSERT((NotEquals0, _rhs.e33), SA.Maths, L"Inverse scale matrix e33 == 0!");
+		EDO_ERROR(!Equals0(_rhs.e00), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e01), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e02), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e03), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e10), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e11), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e12), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e13), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e20), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e21), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e22), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e23), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e30), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e31), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e32), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
+		EDO_ERROR(!Equals0(_rhs.e33), Edo.Maths.Mat3, L"Inverse scale matrix by 0!");
 
 		return Mat4<T, major>(
 			_lhs / _rhs.e00, _lhs / _rhs.e01, _lhs / _rhs.e02, _lhs / _rhs.e03,
