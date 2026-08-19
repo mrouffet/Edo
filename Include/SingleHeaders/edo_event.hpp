@@ -8,6 +8,7 @@
 #include <utility>
 #include <type_traits>
 
+// Edo Debug Module
 #if __has_include(<edo_debug.hpp>)
 	#include <edo_debug.hpp>
 #else

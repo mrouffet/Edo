@@ -17,26 +17,17 @@
 #include <source_location>
 
 #if !defined(NDEBUG) || defined(_DEBUG)
-
 	/// Edo Debug preprocessor.
 	#define EDO_CONFIG_DEBUG 1
-
 #else
-
-	/// Edo Debug preprocessor.
 	#define EDO_CONFIG_DEBUG 0
-
 #endif
 
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
-
 	#include <Windows.h>
-
 	#define EDO_DEBUG_PLTF_WIN 1
 #else
-
 	#define EDO_DEBUG_PLTF_WIN 0
-
 #endif
 
 namespace edo

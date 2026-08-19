@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 
+// Edo Debug Module
 #if __has_include(<edo_debug.hpp>)
 	#include <edo_debug.hpp>
 #else
