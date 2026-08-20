@@ -24,6 +24,7 @@
 	#define EDO_WARN(...) {}
 	#define EDO_ERROR(...) {}
 	#define EDO_ASSERT(...) {}
+	#define EDO_THROW(...) {}
 #endif
 
 /**
@@ -519,7 +520,7 @@ namespace edo::rhi
 		const LPCWSTR name = L"Edo Main Device";
 		mHandle->SetName(name);
 
-		EDO_LOG(L"Create Device success.", Info, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+		EDO_LOG(L"Create Device success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
 
 	#if EDO_CONFIG_DEBUG
 		// Validation Layers
@@ -572,7 +573,7 @@ namespace edo::rhi
 		}
 	#endif
 
-		EDO_LOG(L"Destroying Device...", Info, Edo.RHI.DX12, mHandle.Get());
+		EDO_LOG(L"Destroying Device...", Verbose, Edo.RHI.DX12, mHandle.Get());
 
 		mHandle = nullptr;
 		mAdapter = nullptr;
@@ -1260,7 +1261,7 @@ namespace edo::rhi
 		// PipelineState
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying PipelineState...", Info, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying PipelineState...", Verbose, Edo.RHI.DX12, mHandle.Get());
 
 			mHandle = nullptr;
 		}
@@ -1278,7 +1279,7 @@ namespace edo::rhi
 		{
 			vkDestroyPipeline(device, mHandle, nullptr);
 
-			SA_LOG(L"Destroy Pipeline success.", Info, VK, mHandle);
+			SA_LOG(L"Destroy Pipeline success.", Verbose, VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
@@ -1423,7 +1424,7 @@ namespace edo::rhi
 
 		mHandle->SetName(_desc.name.c_str());
 
-		EDO_LOG(L"Create Buffer success", Info, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
+		EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
 
 #endif // EDO_RHI_DX12
 
@@ -1500,7 +1501,7 @@ namespace edo::rhi
 
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying Buffer...", Info, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying Buffer...", Verbose, Edo.RHI.DX12, mHandle.Get());
 			mHandle = nullptr;
 		}
 		else
@@ -1517,7 +1518,7 @@ namespace edo::rhi
 		{
 			vkDestroyBuffer(_device.Get(), mHandle, nullptr);
 
-			EDO_LOG(L"Destroy Buffer success.", Info, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Destroy Buffer success.", Verbose, Edo.RHI.VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
@@ -1531,7 +1532,7 @@ namespace edo::rhi
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
-			EDO_LOG(L"Destroy Buffer Memory success.", Info, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Destroy Buffer Memory success.", Verbose, Edo.RHI.VK, mMemory);
 
 			mMemory = VK_NULL_HANDLE;
 		}
@@ -1637,7 +1638,7 @@ namespace edo::rhi
 
 		mHandle->SetName(_desc.name.c_str());
 
-		EDO_LOG(L"Create Texture success.", Info, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
+		EDO_LOG(L"Create Texture success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
 
 #endif // EDO_RHI_DX12
 
@@ -1725,7 +1726,7 @@ namespace edo::rhi
 
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying Texture...", Info, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying Texture...", Verbose, Edo.RHI.DX12, mHandle.Get());
 			mHandle = nullptr;
 		}
 		else
@@ -1737,15 +1738,12 @@ namespace edo::rhi
 
 #if EDO_RHI_VK
 
-		// SA_WARN(mHandle, "try destroy null Buffer);
-		// SA_WARN(mMemory, "try destroy null Buffer);
-
 		// Image
 		if(mHandle != VK_NULL_HANDLE)
 		{
 			vkDestroyImage(_device.Get(), mHandle, nullptr);
 
-			EDO_LOG(L"Destroy Texture success.", Info, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Destroy Texture success.", Verbose, Edo.RHI.VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
@@ -1759,7 +1757,7 @@ namespace edo::rhi
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
-			EDO_LOG(L"Destroy Image Memory success.", Info, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Destroy Image Memory success.", Verbose, Edo.RHI.VK, mMemory);
 
 			mMemory = VK_NULL_HANDLE;
 		}
