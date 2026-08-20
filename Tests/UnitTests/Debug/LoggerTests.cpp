@@ -73,5 +73,11 @@ namespace edo::UT::Logger
 		EDO_LOG("This log level is enabled AGAIN in console!", Warning, Edo.TestChan);
 
 //}
+
+		EDO_LOG("Verbose test ignored!", Verbose);
+
+		edo::Debug::logger->EnableLevel(edo::LogLevel::Verbose);
+
+		EDO_LOG("Verbose test passed!", Verbose);
 	}
 }
