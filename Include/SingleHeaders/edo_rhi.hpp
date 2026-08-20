@@ -6,6 +6,8 @@
 #define EDO_SH_RHI_GUARD
 
 #include <cstdint>
+#include <array>
+#include <vector>
 #include <string>
 #include <type_traits>
 
@@ -64,6 +66,9 @@ namespace edo::rhi
 #if EDO_RHI_VK
 
 #include <vulkan/vulkan.h>
+
+#define EDO_VK_ASSERT(_vres, _msg)\
+	EDO_ASSERT(_vres == VK_SUCCESS, Edo.RHI.VK, (edo::StringFormat(_msg) + edo::StringFormat(L"\tError Code: %1", _vres)));
 
 #endif
 
@@ -450,6 +455,319 @@ namespace edo::rhi
 
 // ##############################################################
 
+
+// ##############################################################
+// #					INSTANCE								#
+// ##############################################################
+
+	void Initialize();
+	void Shutdown();
+
+#if EDO_RHI_IMPLEMENTATION
+
+	namespace intl
+	{
+#if EDO_RHI_DX12
+		static MComPtr<IDXGIFactory6> gFactory = nullptr;
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		static VkInstance gInstance = VK_NULL_HANDLE;
+		static VkDebugUtilsMessengerEXT gDebugMessenger = VK_NULL_HANDLE;
+
+	#if EDO_CONFIG_DEBUG
+		static std::array<const char*, 1> gValidationLayers{
+			"VK_LAYER_KHRONOS_validation"
+		};
+
+		VKAPI_ATTR VkBool32 VKAPI_CALL ValidationLayersDebugCallback(
+			VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+			VkDebugUtilsMessageTypeFlagsEXT messageType,
+			const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+			void* pUserData)
+		{
+			(void)pUserData;
+
+			std::wstring msgTypeStr;
+
+			switch (messageType)
+			{
+				case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:
+				{
+					msgTypeStr = L"[General]";
+					break;
+				}
+				case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:
+				{
+					msgTypeStr = L"[Validation]";
+					break;
+				}
+				case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:
+				{
+					msgTypeStr = L"[Performance]";
+					break;
+				}
+				case VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT:
+				{
+					msgTypeStr = L"[AddrBind]";
+					break;
+				}
+				default:
+				{
+					msgTypeStr = L"[Unknown]";
+					break;
+				}
+			}
+
+			switch (messageSeverity)
+			{
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+				{
+					/**
+					* Filter: too much logging.
+					* EDO logging already tracking.
+					*/
+					//EDO_LOG(pCallbackData->pMessage, Verbose, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
+					break;
+				}
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+				{
+					EDO_LOG(pCallbackData->pMessage, Info, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
+					break;
+				}
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+				{
+					EDO_LOG(pCallbackData->pMessage, Warning, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
+					break;
+				}
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+				{
+					EDO_LOG(pCallbackData->pMessage, Error, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
+					break;
+				}
+				default:
+				{
+					EDO_LOG(pCallbackData->pMessage, Normal, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
+					break;
+				}
+			}
+
+			return VK_FALSE;
+		}
+	#endif // EDO_CONFIG_DEBUG
+#endif // EDO_RHI_VK
+	}
+
+	void Initialize()
+	{
+#if EDO_RHI_DX12
+		EDO_ERROR(!intl::gFactory, Edo.RHI.DX12, L"Try initializing already initialized API!");
+
+		UINT dxgiFactoryFlags = 0;
+
+	#if EDO_CONFIG_DEBUG
+		// Validation Layers
+		{
+			// Debug controller
+			{
+				MComPtr<ID3D12Debug1> debugController = nullptr;
+
+				const HRESULT hrDebugInterface = D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+				if (SUCCEEDED(hrDebugInterface))
+				{
+					debugController->EnableDebugLayer();
+					debugController->SetEnableGPUBasedValidation(true);
+				}
+				else
+				{
+					EDO_LOG(L"Validation layer DebugController initialization failed.", Error, Edo.RHI.DX12,
+						(L"Error Code: %1", hrDebugInterface));
+				}
+			}
+
+			// Report live objects
+			{
+				MComPtr<IDXGIInfoQueue> dxgiInfoQueue = nullptr;
+
+				const HRESULT hrDebugInterface = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue));
+				if (SUCCEEDED(hrDebugInterface))
+				{
+					/**
+					* Enable this to trigger breakpoints on ReportLiveObjects() and have errors in VisualStudio's output window.
+					* WARNING: ReportLiveObjects() will ONLY output in VisualStudio's output window and not exe CONSOLE.
+					*/
+					dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+					dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+					dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true);
+				}
+				else
+				{
+					EDO_LOG(L"Validation layer DebugInfoQueue uninitialized failed.", Error, Edo.RHI.DX12,
+						(L"Error Code: %1", hrDebugInterface));
+				}
+			}
+		}
+
+		// Enable additional debug layers.
+		dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+	#endif // EDO_CONFIG_DEBUG
+
+		const HRESULT hrFactoryCreated = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&intl::gFactory));
+		EDO_DX12_ASSERT(hrFactoryCreated, L"Create Factory failed!");
+		
+		EDO_LOG(L"Create Factory success.", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		EDO_ERROR(!intl::gInstance, Edo.RHI.VK, L"Try initializing already initialized API!");
+
+		const VkApplicationInfo appInfo{
+			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+			.pNext = nullptr,
+			.pApplicationName = "EDO_VK-App",
+			.applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+			.pEngineName = "Edo",
+			.engineVersion = VK_MAKE_VERSION(1, 0, 0),
+			.apiVersion = VK_API_VERSION_1_4,
+		};
+
+		VkInstanceCreateInfo instanceCreateInfo{
+			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0u,
+			.pApplicationInfo = &appInfo,
+			.enabledLayerCount = 0u,
+			.ppEnabledLayerNames = nullptr,
+			// TODO:
+			//.enabledExtensionCount = static_cast<uint32_t>(vkInstanceExts.size()),
+			//.ppEnabledExtensionNames = vkInstanceExts.data(),
+		};
+
+	#if EDO_CONFIG_DEBUG
+		// Validation Layers
+		// Check Support
+		{
+			// Query currently supported layers.
+			uint32_t layerCount;
+			vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+			std::vector<VkLayerProperties> availableLayers(layerCount);
+			vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+
+			// Check each asked supported.
+			for (uint32_t i = 0; i < intl::gValidationLayers.size(); ++i)
+			{
+				bool layerFound = false;
+
+				for (uint32_t j = 0; j < availableLayers.size(); ++j)
+				{
+					// Layer found.
+					if (std::strcmp(intl::gValidationLayers[i], availableLayers[j].layerName) == 0)
+					{
+						layerFound = true;
+						break;
+					}
+				}
+
+				// Layer not found.
+				if (!layerFound)
+				{
+					EDO_LOG((L"Validation Layers [%1] not supported!", intl::gValidationLayers[i]), Error, Edo.RHI.VK.ValidationLayers);
+				}
+			}
+		}
+
+		const VkDebugUtilsMessengerCreateInfoEXT debugUtilsInfo{
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+			.pNext = nullptr,
+			.flags = 0u,
+			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT,
+			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_FLAG_BITS_MAX_ENUM_EXT,
+			.pfnUserCallback = intl::ValidationLayersDebugCallback,
+			.pUserData = nullptr,
+		};
+
+		instanceCreateInfo.pNext = &debugUtilsInfo;
+
+		instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(intl::gValidationLayers.size());
+		instanceCreateInfo.ppEnabledLayerNames = intl::gValidationLayers.data();
+	#endif // EDO_CONFIG_DEBUG
+
+		const VkResult vrInstanceCreated = vkCreateInstance(&instanceCreateInfo, nullptr, &intl::gInstance);
+		EDO_VK_ASSERT(vrInstanceCreated, L"Create VkInstance failed!");
+		
+		EDO_LOG("Create VkInstance success.", Verbose, Edo.RHI.VK, intl::gInstance);
+
+	#if EDO_CONFIG_DEBUG
+		// Validation Layers
+		{
+			auto createDebugFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(intl::gInstance, "vkCreateDebugUtilsMessengerEXT");
+			if (createDebugFunc)
+			{
+				const VkResult vrDebugCreated = createDebugFunc(intl::gInstance, &debugUtilsInfo, nullptr, &intl::gDebugMessenger);
+				EDO_VK_ASSERT(vrDebugCreated, L"Failed to create vulkan debug messenger!");
+
+				EDO_LOG(L"Debug Messenger created.", Verbose, Edo.RHI.VK, intl::gDebugMessenger);
+			}
+			else
+			{
+				EDO_LOG(L"Extension PFN_vkCreateDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK);
+			}
+		}
+	#endif // EDO_CONFIG_DEBUG
+#endif // EDO_RHI_VK
+	}
+
+	void Shutdown()
+	{
+#if EDO_RHI_DX12
+		EDO_ERROR(intl::gFactory, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
+
+		EDO_LOG(L"Destroying Factory...", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
+		intl::gFactory = nullptr;
+
+	#if EDO_CONFIG_DEBUG
+		// Report live objects
+		MComPtr<IDXGIDebug1> dxgiDebug = nullptr;
+
+		const HRESULT hrDebugInterface = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug));
+		if (SUCCEEDED(hrDebugInterface))
+		{
+			dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+		}
+		else
+		{
+			EDO_LOG(L"Validation layer uninitialized failed.", Error, Edo.RHI.DX12);
+		}
+	#endif // EDO_CONFIG_DEBUG
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		EDO_ERROR(intl::gInstance, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
+
+	#if EDO_CONFIG_DEBUG
+		auto destroyDebugFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(intl::gInstance, "vkDestroyDebugUtilsMessengerEXT");
+		if (destroyDebugFunc)
+		{
+			destroyDebugFunc(intl::gInstance, intl::gDebugMessenger, nullptr);
+			EDO_LOG(L"Destroy Debug Messenger success.", Verbose, Edo.RHI.VK, intl::gDebugMessenger);
+			intl::gDebugMessenger = VK_NULL_HANDLE;
+		}
+		else
+		{
+			EDO_LOG(L"Extension PFN_vkDestroyDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK);
+		}
+	#endif
+
+		vkDestroyInstance(intl::gInstance, nullptr);
+		EDO_LOG(L"Destroy Instance success", Verbose, Edo.RHI.VK, intl::gInstance);
+		intl::gInstance = VK_NULL_HANDLE;
+#endif // EDO_RHI_VK
+	}
+
+#endif
+
 // ##############################################################
 // #					DEVICE									#
 // ##############################################################
@@ -505,13 +823,106 @@ namespace edo::rhi
 
 #if EDO_RHI_IMPLEMENTATION
 	
+	namespace intl
+	{
+#if EDO_RHI_DX12
+		void ValidationLayersDebugCallback(D3D12_MESSAGE_CATEGORY _category,
+			D3D12_MESSAGE_SEVERITY _severity,
+			D3D12_MESSAGE_ID _ID,
+			LPCSTR _description,
+			void* _context)
+		{
+			(void)_context;
+
+			std::wstring categoryStr;
+
+			switch (_category)
+			{
+				case D3D12_MESSAGE_CATEGORY_APPLICATION_DEFINED:
+					categoryStr = L"Application Defined";
+					break;
+				case D3D12_MESSAGE_CATEGORY_MISCELLANEOUS:
+					categoryStr = L"Miscellaneous";
+					break;
+				case D3D12_MESSAGE_CATEGORY_INITIALIZATION:
+					categoryStr = L"Initialization";
+					break;
+				case D3D12_MESSAGE_CATEGORY_CLEANUP:
+					categoryStr = L"Cleanup";
+					break;
+				case D3D12_MESSAGE_CATEGORY_COMPILATION:
+					categoryStr = L"Compilation";
+					break;
+				case D3D12_MESSAGE_CATEGORY_STATE_CREATION:
+					categoryStr = L"State Creation";
+					break;
+				case D3D12_MESSAGE_CATEGORY_STATE_SETTING:
+					categoryStr = L"State Setting";
+					break;
+				case D3D12_MESSAGE_CATEGORY_STATE_GETTING:
+					categoryStr = L"State Getting";
+					break;
+				case D3D12_MESSAGE_CATEGORY_RESOURCE_MANIPULATION:
+					categoryStr = L"Resource Manipulation";
+					break;
+				case D3D12_MESSAGE_CATEGORY_EXECUTION:
+					categoryStr = L"Execution";
+					break;
+				case D3D12_MESSAGE_CATEGORY_SHADER:
+					categoryStr = L"Shader";
+					break;
+				default:
+					categoryStr = L"Unknown";
+					break;
+			}
+
+			std::wstring dets = edo::StringFormat(L"ID [%1]\tCategory [%2]", static_cast<int>(_ID), categoryStr);
+
+			switch (_severity)
+			{
+				case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+				{
+					EDO_LOG(_description, AssertFailure, Edo.RHI.DX12.ValidationLayers, std::move(dets));
+					break;
+				}
+				case D3D12_MESSAGE_SEVERITY_ERROR:
+				{
+					EDO_LOG(_description, Error, Edo.RHI.DX12.ValidationLayers, std::move(dets));
+					break;
+				}
+				case D3D12_MESSAGE_SEVERITY_WARNING:
+				{
+					EDO_LOG(_description, Warning, Edo.RHI.DX12.ValidationLayers, std::move(dets));
+					break;
+				}
+				case D3D12_MESSAGE_SEVERITY_INFO:
+				{
+					/**
+					* Filter: too much logging on Resource create/destroy and Swapchain Present.
+					* EDO logging already tracking.
+					*/
+					//EDO_LOG(_description, Verbose, Edo.RHI.DX12.ValidationLayers, std::move(dets));
+					break;
+				}
+				case D3D12_MESSAGE_SEVERITY_MESSAGE:
+				default:
+				{
+					EDO_LOG(_description, Normal, Edo.RHI.DX12.ValidationLayers, std::move(dets));
+					break;
+				}
+			}
+		}
+#endif // EDO_RHI_DX12
+	}
+
 	void Device::Create()
 	{
 #if EDO_RHI_DX12
+		EDO_ASSERT(intl::gFactory, Edo.RHI.DX12, L"API not initialized. Call edo::rhi::Initialize() first!");
 		EDO_ERROR(!mAdapter, Edo.RHI.DX12, L"Try create an already created device!");
 		EDO_ERROR(!mHandle, Edo.RHI.DX12, L"Try create an already created device!");
 
-		const HRESULT hrQueryGPU = factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
+		const HRESULT hrQueryGPU = intl::gFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
 		EDO_DX12_ASSERT(hrQueryGPU, L"Adapter not found!");
 
 		const HRESULT hrDeviceCreated = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mHandle));
@@ -530,7 +941,7 @@ namespace edo::rhi
 			const HRESULT hrQueryInfoQueue = mHandle->QueryInterface(IID_PPV_ARGS(&infoQueue));
 			if (SUCCEEDED(hrQueryInfoQueue))
 			{
-				infoQueue->RegisterMessageCallback(ValidationLayersDebugCallback,
+				infoQueue->RegisterMessageCallback(intl::ValidationLayersDebugCallback,
 					D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, nullptr, &mVLayerCallbackCookie);
 
 				infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
@@ -552,7 +963,7 @@ namespace edo::rhi
 	{
 #if EDO_RHI_DX12
 
-		EDO_ERROR(!mHandle || !mAdapter, Edo.RHI.DX12, L"Try destroying already null device!", return;);
+		EDO_ERROR(mHandle && mAdapter, Edo.RHI.DX12, L"Try destroying already null device!", return;);
 
 	#if EDO_CONFIG_DEBUG
 		if (mVLayerCallbackCookie)
@@ -830,6 +1241,8 @@ namespace edo::rhi
 
 	void Pipeline::Create(const Device& _device, const GfxPipelineDesc& _desc)
 	{
+		(void)_device;
+		(void)_desc;
 #if EDO_RHI_DX12 && 0
 
 		// PipelineState
@@ -1231,6 +1644,8 @@ namespace edo::rhi
 
 	void Pipeline::Create(const Device& _device, const CompPipelineDesc& _desc)
 	{
+		(void)_device;
+		(void)_desc;
 #if EDO_RHI_DX12 && 0
 
 		// Pipeline State
@@ -1256,6 +1671,7 @@ namespace edo::rhi
 
 	void Pipeline::Destroy(const Device& _device)
 	{
+		(void)_device;
 #if EDO_RHI_DX12
 
 		// PipelineState
@@ -1277,9 +1693,9 @@ namespace edo::rhi
 		// Pipeline
 		if (mHandle != VK_NULL_HANDLE)
 		{
-			vkDestroyPipeline(device, mHandle, nullptr);
+			vkDestroyPipeline(_device.Get(), mHandle, nullptr);
 
-			SA_LOG(L"Destroy Pipeline success.", Verbose, VK, mHandle);
+			EDO_LOG(L"Destroy Pipeline success.", Verbose, Edo.RHI.VK, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
@@ -1447,13 +1863,9 @@ namespace edo::rhi
 			};
 
 			const VkResult vrBufferCreated = vkCreateBuffer(_device.Get(), &bufferInfo, nullptr, &mHandle);
-			if (vrBufferCreated != VK_SUCCESS)
-			{
-				//SA_LOG(L"Create PointLights Buffer failed!", Error, VK, (L"Error code: %1", vrBufferCreated));
-				return EXIT_FAILURE;
-			}
+			EDO_VK_ASSERT(vrBufferCreated, L"Create Buffer failed!");
 
-			//SA_LOG(L"Create PointLights Buffer success", Info, VK, pointLightBuffer);
+			EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.VK, mHandle);
 		}
 
 		// Memory
@@ -1469,25 +1881,17 @@ namespace edo::rhi
 			};
 
 			const VkResult vrBufferAlloc = vkAllocateMemory(_device.Get(), &allocInfo, nullptr, &mMemory);
-			if (vrBufferAlloc != VK_SUCCESS)
-			{
-				//SA_LOG(L"Create PointLights Buffer Memory failed!", Error, VK, (L"Error code: %1", vrBufferAlloc));
-				return EXIT_FAILURE;
-			}
+			EDO_VK_ASSERT(vrBufferAlloc, L"Create Buffer Memory failed!");
 
-			//SA_LOG(L"Create PointLights Buffer Memory success", Info, VK, pointLightBufferMemory);
+			EDO_LOG(L"Create Buffer Memory success", Verbose, Edo.RHI.VK, mMemory);
 		}
 
 		// Bind
 		{
 			const VkResult vrBindBufferMem = vkBindBufferMemory(_device.Get(), mHandle, mMemory, 0);
-			if (vrBindBufferMem != VK_SUCCESS)
-			{
-				//SA_LOG(L"Bind PointLights Buffer Memory failed!", Error, VK, (L"Error code: %1", vrBindBufferMem));
-				return EXIT_FAILURE;
-			}
+			EDO_VK_ASSERT(vrBindBufferMem, L"Bind Buffer Memory failed!");
 
-			//SA_LOG(L"Bind PointLights Buffer Memory success", Info, VK);
+			EDO_LOG(L"Bind Buffer Memory success", Verbose, Edo.RHI.VK, mMemory);
 		}
 
 #endif // EDO_RHI_VK
@@ -1672,13 +2076,9 @@ namespace edo::rhi
 			};
 
 			const VkResult vrImageCreated = vkCreateImage(_device.Get(), &imageInfo, nullptr, &mHandle);
-			if (vrImageCreated != VK_SUCCESS)
-			{
-				//SA_LOG(L"Create RustedIron2 Albedo Texture failed!", Error, VK, (L"Error code: %1", vrImageCreated));
-				return EXIT_FAILURE;
-			}
-				
-			//SA_LOG(L"Create RustedIron2 Albedo Texture success", Info, VK, rustedIron2AlbedoImage);
+			EDO_VK_ASSERT(vrImageCreated, L"Create Texture failed!");
+
+			EDO_LOG(L"Create Texture success", Verbose, Edo.RHI.VK, mHandle);
 		}
 
 		// ImageMemory
@@ -1694,25 +2094,17 @@ namespace edo::rhi
 			};
 
 			const VkResult vrImageAlloc = vkAllocateMemory(_device.Get(), &allocInfo, nullptr, &mMemory);
-			if (vrImageAlloc != VK_SUCCESS)
-			{
-				//SA_LOG(L"Create RustedIron2 Albedo Texture Alloc failed!", Error, VK, (L"Error code: %1", vrImageAlloc));
-				return EXIT_FAILURE;
-			}
-				
-			//SA_LOG(L"Create RustedIron2 Albedo Texture Alloc success", Info, VK, rustedIron2AlbedoImageMemory);
+			EDO_VK_ASSERT(vrImageAlloc, L"Create Texture Memory failed!");
+
+			EDO_LOG(L"Create Texture Memory success", Verbose, Edo.RHI.VK, mMemory);
 		}
 
 		// Bind
 		{
-			const VkResult vrImageBindMem = vkBindImageMemory(_device.Get(), mHandle, mMemory), 0);
-			if (vrImageBindMem != VK_SUCCESS)
-			{
-				//SA_LOG(L"Create RustedIron2 Albedo Texture Memory bind failed!", Error, VK, (L"Error code: %1", vrImageBindMem));
-				return EXIT_FAILURE;
-			}
-				
-			//SA_LOG(L"Create RustedIron2 Albedo Texture Memory bind success", Info, VK);
+			const VkResult vrImageBindMem = vkBindImageMemory(_device.Get(), mHandle, mMemory, 0);
+			EDO_VK_ASSERT(vrImageBindMem, L"Bind Texture Memory failed!");
+
+			EDO_LOG(L"Bind Texture Memory success", Verbose, Edo.RHI.VK);
 		}
 
 #endif // EDO_RHI_VK

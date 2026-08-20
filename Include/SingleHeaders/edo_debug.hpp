@@ -90,7 +90,7 @@ namespace edo
 	*	\return	std::string from element converted.
 	*/
 	template <typename T>
-	std::string ToString(const T& _elem)
+	std::string ToString(T&& _elem)
 	{
 		if constexpr (std::is_same<T, char>::value)
 		{
@@ -235,7 +235,7 @@ namespace edo
 	*	\return	std::wstring from element converted.
 	*/
 	template <typename T>
-	std::wstring ToWString(const T& _elem) noexcept
+	std::wstring ToWString(T&& _elem) noexcept
 	{
 		if constexpr (std::is_same<T, char>::value)
 		{
@@ -251,7 +251,7 @@ namespace edo
 		}
 		else if constexpr (std::is_same<T, std::string>::value)
 		{
-			return intl::ConvertStringToWString(_elem);
+			return intl::ConvertStringToWString(std::forward<T>(_elem));
 		}
 		else if constexpr (std::is_same<T, std::wstring>::value)
 		{
@@ -260,7 +260,7 @@ namespace edo
 		else
 		{
 			// Search for ToString definition for elem.
-			return intl::ConvertStringToWString(ToString(_elem));
+			return intl::ConvertStringToWString(ToString(std::forward<T>(_elem)));
 		}
 	}
 
