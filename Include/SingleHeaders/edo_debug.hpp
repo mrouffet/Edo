@@ -23,6 +23,11 @@
 	#define EDO_CONFIG_DEBUG 0
 #endif
 
+/// Option to enable log preprocessor in Release
+#ifndef EDO_DEBUG_ENABLE_LOG_RELEASE
+#define EDO_DEBUG_ENABLE_LOG_RELEASE 0
+#endif
+
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
 	#include <Windows.h>
 	#define EDO_DEBUG_PLTF_WIN 1
@@ -427,25 +432,28 @@ namespace edo
 	/// \brief All levels of logging.
 	enum class LogLevel : uint8_t
 	{
+		/// Verbose level
+		Verbose = (1 << 0),
+
 		/// Normal level
-		Normal = (1 << 0),
+		Normal = (1 << 1),
 
 		/// Info level
-		Info = (1 << 1),
+		Info = (1 << 2),
 
 		/// Warning level
-		Warning = (1 << 2),
+		Warning = (1 << 3),
 
 		/// Error level
-		Error = (1 << 3),
+		Error = (1 << 4),
 
 		/// Assertion Success level
-		AssertSuccess = (1 << 4),
+		AssertSuccess = (1 << 5),
 
 		/// Assertion Failure level
-		AssertFailure = (1 << 5),
+		AssertFailure = (1 << 6),
 
-		/// Default log level (no assert success).
+		/// Default log level.
 		Default = Normal | Info | Warning | Error | AssertFailure,
 
 		Max = uint8_t(-1)
@@ -483,6 +491,7 @@ namespace edo
 	{
 		static constexpr const char* const names[]{
 			"Unknown",
+			"Verbose",
 			"Normal",
 			"Info",
 			"Warning",
@@ -498,6 +507,7 @@ namespace edo
 	{
 		static constexpr const wchar_t* const names[]{
 			L"Unknown",
+			L"Verbose",
 			L"Normal",
 			L"Info",
 			L"Warning",
@@ -949,6 +959,9 @@ namespace edo
 	*/
 	struct ConsoleColorTheme
 	{
+		/// Verbose level color.
+		uint8_t verbose = CslColor::None_FG;
+
 		/// Normal level color.
 		uint8_t normal = CslColor::Bright_FG;
 
@@ -1175,7 +1188,7 @@ namespace edo
 
 	const uint8_t* ConsoleColorTheme::Data() const
 	{
-		return &normal;
+		return &verbose;
 	}
 
 	void ConsoleColorTheme::SetConsoleColorFromLevel(LogLevel _lvl) const
@@ -1826,7 +1839,7 @@ namespace edo
 	#define __EDO_ASSERT3(_str, _lvl, _chan)	__EDO_ASSERT4(_str, _lvl, _chan, L"")
 	#define __EDO_ASSERT2(_str, _lvl)			__EDO_ASSERT3(_str, _lvl, Default)
 
-#if EDO_CONFIG_DEBUG
+#if EDO_CONFIG_DEBUG || EDO_DEBUG_ENABLE_LOG_RELEASE
 
 	/**
 	*	\def EDO_LOG_END_OF_FRAME()
@@ -1838,14 +1851,16 @@ namespace edo
 	#define EDO_LOG_END_OF_FRAME() { if(edo::Debug::logger) edo::Debug::logger->IncrementFrameNum(); }
 
 	/**
-	*	\def EDO_LOG((_str, _args), _lvl, _chan, _dets)
+	*	\def EDO_LOG(_fstr, _lvl, _chan, _dets)
 	*
 	*	\brief Edo Log macro.
 	*
 	*	Helper macro to use Debug::Log.
 	*
-	*	\param[in] _str		String message of the log. Parentheses are optionnal for single string or object.
-	*	\param[in] _args	Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
+	*	\param[in] _fstr	Formatted String message of the log.
+	*		Use (_str, _args) with:
+	*		_str		String message of the log. Parentheses are optionnal for single string or object.
+	*		_args		Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
 	*	\param[in] _lvl		Level of the log (optional).
 	*	\param[in] _chan	Channel of the log (optional).
 	*	\param[in] _dets	Details string of the log (optional).
@@ -1890,7 +1905,6 @@ namespace edo
 	*	\param[in] _pred	predicate of the Log. Output AssertFailure on false and AssertSuccess on true.
 	*	\param[in] _chan	Channel of the log (optional).
 	*	\param[in] _dets	Details string of the log (optional).
-	*	\param[in] _postCmd	Post-log command on true predicate, usually for return value (optional).
 	*/
 	#define EDO_ASSERT(_pred, ...)\
 	{\
@@ -1899,17 +1913,32 @@ namespace edo
 		else { __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(L"{ " EDO_WSTR(_pred) " }\tevaluated to false!", AssertFailure, ##__VA_ARGS__) }\
 	}
 
+	/**
+	*	\def EDO_THROW(_fstr, _chan, _dets)
+	*
+	*	\brief Edo Throw macro.
+	*
+	*	Helper macro to force call throw with Debug::Log assert.
+	*
+	*	\param[in] _fstr	Formatted String message of the log.
+	*		Use (_str, _args) with:
+	*		_str		String message of the log. Parentheses are optionnal for single string or object.
+	*		_args		Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
+	*	\param[in] _chan	Channel of the log (optional).
+	*	\param[in] _dets	Details string of the log (optional).
+	*/
+	#define EDO_THROW(_fstr, ...) __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(_fstr, AssertFailure, ##__VA_ARGS__);
+
 #else
 
 	#define EDO_LOG_END_OF_FRAME() {}
 
 	#define EDO_LOG(...) {}
-
 	#define EDO_WARN(...) {}
-
 	#define EDO_ERROR(...) {}
 
 	#define EDO_ASSERT(...) {}
+	#define EDO_THROW(...) {}
 
 #endif
 

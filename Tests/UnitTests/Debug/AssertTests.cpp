@@ -33,5 +33,7 @@ namespace EDO::UT::Assert
 		const char* ptr = nullptr;
 		EXPECT_THROW(EDO_ASSERT(ptr, Edo.UT.Assert), edo::Log);
 		EXPECT_NO_THROW(EDO_ASSERT(!ptr, Edo.UT.Assert));
+
+		EXPECT_THROW(EDO_THROW(L"Exception code reached: throwing exception.", Edo.UT.Assert), edo::Log);
 	}
 }

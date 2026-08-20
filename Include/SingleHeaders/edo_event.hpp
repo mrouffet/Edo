@@ -16,6 +16,7 @@
 	#define EDO_WARN(...) {}
 	#define EDO_ERROR(...) {}
 	#define EDO_ASSERT(...) {}
+	#define EDO_THROW(...) {}
 #endif
 
 namespace edo
