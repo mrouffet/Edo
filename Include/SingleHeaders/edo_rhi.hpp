@@ -34,7 +34,7 @@
 *	User-defined preprocessor to select API.
 *	Define API per-platform by default.
 */
-#if !defined(EDO_RHI_DX12) && !defined(EDO_RHI_VK) && !defined(EDO_RHI_CPU)
+#if !defined(EDO_RHI_DX12) && !defined(EDO_RHI_VK) && !defined(EDO_RHI_GL) && !defined(EDO_RHI_CPU)
 	#if WIN32
 		#define EDO_RHI_DX12 1
 	#else

@@ -34,3 +34,31 @@ if(UNIX OR WIN32)
 	gtest_discover_tests(Edo_RHI_VK_UT)
 
 endif()
+
+
+# ===== Target GL =====
+if(false)
+
+	add_executable(Edo_RHI_GL_UT "../main.cpp" ${EDO_RHI_UT_SOURCES})
+
+	target_compile_definitions(Edo_RHI_GL_UT PRIVATE EDO_UT_RHI_GL=1)
+
+	target_link_libraries(Edo_RHI_GL_UT PRIVATE Edo GTest::gtest_main)
+
+	gtest_discover_tests(Edo_RHI_GL_UT)
+
+endif()
+
+
+# ===== Target CPU =====
+if(false)
+
+	add_executable(Edo_RHI_CPU_UT "../main.cpp" ${EDO_RHI_UT_SOURCES})
+
+	target_compile_definitions(Edo_RHI_CPU_UT PRIVATE EDO_UT_RHI_CPU=1)
+
+	target_link_libraries(Edo_RHI_CPU_UT PRIVATE Edo GTest::gtest_main)
+
+	gtest_discover_tests(Edo_RHI_CPU_UT)
+
+endif()
