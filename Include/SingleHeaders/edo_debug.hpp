@@ -96,17 +96,19 @@ namespace edo
 	*	\return	std::string from element converted.
 	*/
 	template <typename T>
-	std::string ToString(const T& _elem)
+	std::string ToString(T&& _elem)
 	{
-		if constexpr (std::is_same<T, char>::value)
+		using RawT = std::remove_cvref_t<T>;
+
+		if constexpr (std::is_same<RawT, char>::value)
 		{
 			return std::string(1u, _elem);
 		}
-		else if constexpr (std::is_arithmetic<T>::value)
+		else if constexpr (std::is_arithmetic<RawT>::value)
 		{
 			return std::to_string(_elem);
 		}
-		else if constexpr (std::is_same<T, std::string>::value)
+		else if constexpr (std::is_same<RawT, std::string>::value)
 		{
 			return std::forward<T>(_elem);
 		}
@@ -241,25 +243,27 @@ namespace edo
 	*	\return	std::wstring from element converted.
 	*/
 	template <typename T>
-	std::wstring ToWString(const T& _elem) noexcept
+	std::wstring ToWString(T&& _elem) noexcept
 	{
-		if constexpr (std::is_same<T, char>::value)
+		using RawT = std::remove_cvref_t<T>;
+
+		if constexpr (std::is_same<RawT, char>::value)
 		{
 			return std::wstring(1u, _elem);
 		}
-		if constexpr (std::is_same<T, wchar_t>::value)
+		if constexpr (std::is_same<RawT, wchar_t>::value)
 		{
 			return std::wstring(1u, _elem);
 		}
-		else if constexpr (std::is_arithmetic<T>::value)
+		else if constexpr (std::is_arithmetic<RawT>::value)
 		{
 			return std::to_wstring(_elem);
 		}
-		else if constexpr (std::is_same<T, std::string>::value)
+		else if constexpr (std::is_same<RawT, std::string>::value)
 		{
 			return intl::ConvertStringToWString(_elem);
 		}
-		else if constexpr (std::is_same<T, std::wstring>::value)
+		else if constexpr (std::is_same<RawT, std::wstring>::value)
 		{
 			return std::forward<T>(_elem);
 		}
