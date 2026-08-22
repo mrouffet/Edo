@@ -103,6 +103,18 @@ namespace edo
 {
 	/* Must be declared in edo:: */
 	template <typename T>
+	std::ostream& operator<<(std::ostream& _os, const Rad<T>& _r)
+	{
+		return _os << std::to_string(_r.Handle()) + "_rad";
+	}
+
+	template <typename T>
+	std::ostream& operator<<(std::ostream& _os, const Deg<T>& _d)
+	{
+		return _os << std::to_string(_d.Handle()) + "_deg";
+	}
+
+	template <typename T>
 	std::ostream& operator<<(std::ostream& _os, const Vec2<T>& _v)
 	{
 		return _os << "X: " + std::to_string(_v.x) +
