@@ -463,7 +463,7 @@ namespace edo
 		*/
 		template <typename TIn>
 		constexpr Rad(Deg<TIn> _deg) noexcept :
-			mHandle{ static_cast<T>(_deg.Handle() * DegToRad<TIn>) }
+			mHandle{ static_cast<T>(_deg.Handle()) * DegToRad<T> }
 		{
 		}
 
@@ -833,7 +833,7 @@ namespace edo
 		*/
 		template <typename TIn>
 		constexpr Deg(Rad<TIn> _rad) noexcept :
-			mHandle{ static_cast<T>(_rad.Handle() * RadToDeg<TIn>) }
+			mHandle{ static_cast<T>(_rad.Handle()) * RadToDeg<T> }
 		{
 		}
 
