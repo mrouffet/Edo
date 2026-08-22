@@ -7189,6 +7189,475 @@ namespace edo
 //}
 
 // ##############################################################
+
+
+// ##############################################################
+// #					TRANSFORM								#
+// ##############################################################
+
+	template <typename T>
+	struct Tr
+	{
+		/// Type of the Transform.
+		using Type = T;
+
+
+		Vec3<T> position = Vec3<T>::Zero;
+
+		Quat<T> rotation = Quat<T>::Identity;
+
+		Vec3<T> scale = Vec3<T>::One;
+
+//{ Constructors
+
+		/// Default Constructor
+		Tr() = default;
+
+		/**
+		*	\brief \e Value constructor.
+		*
+		*	\param[in] _pos		Position value.
+		*	\param[in] _rot		Rotation value.
+		*	\param[in] _scale	Scale value.
+		*/
+		Tr(Vec3<T> _pos, Quat<T> _rot, Vec3<T> _scale) noexcept :
+			position{ _pos },
+			rotation{ _rot },
+			scale{ _scale }
+		{
+		}
+
+
+		/// Default move constructor.
+		Tr(Tr&&) = default;
+
+		/// Default copy constructor.
+		Tr(const Tr&) = default;
+
+		/**
+		*	\brief \e Value constructor from another Tr type.
+		*
+		*	\tparam TIn			Type of the input Tr.
+		*
+		*	\param[in] _other	Tr to construct from.
+		*/
+		template <typename TIn>
+		constexpr Tr(const Tr<TIn>& _other) noexcept :
+			position{ _other.position },
+			rotation{ _other.rotation },
+			scale{ _other.scale }
+		{
+		}
+
+//}
+
+
+//{ Equals
+
+		/**
+		*	\brief Whether this transform is a zero transform.
+		*
+		*	\return True if this is a zero transform.
+		*/
+		constexpr bool IsZero() const noexcept
+		{
+			return position.IsZero() && rotation.IsZero() && scale.IsZero();
+		}
+
+		/**
+		*	\brief Whether this transform is an identity transform.
+		*
+		*	\return True if this is an identity transform.
+		*/
+		bool IsIdentity() const noexcept
+		{
+			return position.IsZero() && rotation.IsIdentity() && scale == Vec3<T>::One;
+		}
+
+		/**
+		*	\brief \e Compare 2 transform.
+		*
+		*	\param[in] _other		Other transform to compare to.
+		*	\param[in] _epsilon		Epsilon value for threshold comparison.
+		*
+		*	\return Whether this and _other are equal.
+		*/
+		bool Equals(const Tr& _other, T _epsilon = std::numeric_limits<T>::epsilon()) const noexcept
+		{
+			return position.Equals(_other.position, _epsilon) &&
+				rotation.Equals(_other.rotation, _epsilon) &&
+				scale.Equals(_other.scale, _epsilon);
+		}
+
+
+		/**
+		*	\brief \e Compare 2 transform equality.
+		*
+		*	\param[in] _rhs		Other transform to compare to.
+		*
+		*	\return Whether this and _rhs are equal.
+		*/
+		bool operator==(const Tr& _rhs) const noexcept
+		{
+			return Equals(_rhs);
+		}
+
+		/**
+		*	\brief \e Compare 2 transform inequality.
+		*
+		*	\param[in] _rhs		Other transform to compare to.
+		*
+		*	\return Whether this and _rhs are non-equal.
+		*/
+		bool operator!=(const Tr& _rhs) const noexcept
+		{
+			return !(*this == _rhs);
+		}
+
+//}
+
+
+//{ Lerp
+
+		/**
+		*	\brief <b> Clamped Lerp </b> from _start to _end at _alpha.
+		*
+		*	Reference: https://en.wikipedia.org/wiki/Linear_interpolation
+		* 
+		*	\tparam AlphaT		Input Alpha type.
+		*
+		*	\param _start	Starting point of the lerp.
+		*	\param _end		Ending point of the lerp.
+		*	\param _alpha	Alpha of the lerp.
+		*
+		*	\return interpolation between _start and _end. return _start when _alpha == 0.0f and _end when _alpha == 1.0f.
+		*/
+		template<typename AlphaT = T>
+		static Tr Lerp(const Tr& _start, const Tr& _end, AlphaT _alpha) noexcept
+		{
+			return Tr{
+				Vec3<T>::Lerp(_start.position, _end.position, _alpha),
+				Quat<T>::Lerp(_start.rotation, _end.rotation, _alpha),
+				Vec3<T>::Lerp(_start.scale, _end.scale, _alpha),
+			};
+		}
+
+		/**
+		*	\brief <b> Unclamped Lerp </b> from _start to _end at _alpha.
+		*
+		*	Reference: https://en.wikipedia.org/wiki/Linear_interpolation
+		*
+		*	\tparam AlphaT		Input Alpha type.
+		* 
+		*	\param _start	Starting point of the lerp.
+		*	\param _end		Ending point of the lerp.
+		*	\param _alpha	Alpha of the lerp.
+		*
+		*	\return interpolation between _start and _end. return _start when _alpha == 0.0f and _end when _alpha == 1.0f.
+		*/
+		template<typename AlphaT = T>
+		static Tr LerpUnclamped(const Tr& _start, const Tr& _end, AlphaT _alpha) noexcept
+		{
+			return Tr{
+				Vec3<T>::LerpUnclamped(_start.position, _end.position, _alpha),
+				Quat<T>::LerpUnclamped(_start.rotation, _end.rotation, _alpha),
+				Vec3<T>::LerpUnclamped(_start.scale, _end.scale, _alpha),
+			};
+		}
+
+//}
+
+
+//{ Transformation
+
+		/**
+		*	\brief \e Getter of \b right vector (X axis) of this transform.
+		*
+		*	\return transformed right vector normalized.
+		*/
+		Vec3<T> Right() const noexcept
+		{
+			return rotation.Rotate(Vec3<T>::Right);
+		}
+
+		/**
+		*	\brief \e Getter of \b up vector (Y axis) of this transform.
+		*
+		*	\return transformed up vector normalized.
+		*/
+		Vec3<T> Up() const noexcept
+		{
+			return rotation.Rotate(Vec3<T>::Up);
+		}
+
+		/**
+		*	\brief \e Getter of \b forward vector (Z axis) of this transform.
+		*
+		*	\return transformed forward vector normalized.
+		*/
+		Vec3<T> Forward() const noexcept
+		{
+			return rotation.Rotate(Vec3<T>::Forward);
+		}
+
+
+		/**
+		 * \brief \b Compute matrix from transform
+		 * Use default TRS order application.
+		 * 
+		 * \return transformation matrix.
+		 */
+		Mat4<T> Matrix() const noexcept
+		{
+			Mat4<T> out = Mat4<T>::Identity;
+
+			// Apply Rotation
+			const bool bHasRotation = !rotation.IsIdentity();
+			if (bHasRotation)
+			{
+				out = Mat4<T>::MakeRotation(rotation);
+			}
+
+
+			// Apply Scale
+			const bool bHasScale = scale != Vec3<T>::One;
+			if (bHasScale)
+			{
+				if (bHasRotation)
+				{
+					/*
+					*	Optimization of R * S.
+					*
+					*	R {						S {
+					*		{ a, b, c, 0 },			{ Sx, 0, 0, 0 },
+					*		{ d, e, f, 0 },			{ 0, Sy, 0, 0 },
+					*		{ g, h, i, 0 },			{ 0, 0, Sz, 0 },
+					*		{ 0, 0, 0, 1 }			{ 0, 0, 0, 1}
+					*	}						}
+					*
+					*
+					*	Result {
+					*		{ a Sx, b Sy, c Sz, 0 },
+					*		{ d Sx, e Sy, f Sz, 0 },
+					*		{ g Sx, h Sy, i Sz, 0 },
+					*		{ 0, 0, 0, 1 }
+					*	}
+					*
+					*/
+
+					out.e00 *= scale.x;
+					out.e01 *= scale.y;
+					out.e02 *= scale.z;
+
+					out.e10 *= scale.x;
+					out.e11 *= scale.y;
+					out.e12 *= scale.z;
+
+					out.e20 *= scale.x;
+					out.e21 *= scale.y;
+					out.e22 *= scale.z;
+				}
+				else
+				{
+					// Scale but no rotation: simple scale matrix.
+
+					out = Mat4<T>::MakeScale(scale);
+				}
+			}
+
+			// Apply Translation
+			const bool bHasPosition = !position.IsZero();
+			if (bHasPosition)
+			{
+				/*
+				*	Optimization of T * M with:
+				*
+				*	T {						M {
+				*		{ 1, 0, 0, Tx },		{ a, b, c, 0 },
+				*		{ 0, 1, 0, Ty },		{ d, e, f, 0 },
+				*		{ 0, 0, 1, Tz },		{ g, h, i, 0 },
+				*		{ 0, 0, 0, 1 }			{ 0, 0, 0, 1}
+				*	}						}
+				*
+				*
+				*	Result {
+				*		{ a, b, c, Tx },
+				*		{ d, e, f, Ty },
+				*		{ g, h, i, Tz },
+				*		{ 0, 0, 0, 1 }
+				*	}
+				*
+				*/
+
+				out.e03 = position.x;
+				out.e13 = position.y;
+				out.e23 = position.z;
+			}
+
+			return out;
+		}
+
+//}
+
+
+//{ Operators
+
+		/**
+		*	\brief \e Default assignment move operator.
+		*
+		*	\return self transform assigned.
+		*/
+		Tr& operator=(Tr&&) = default;
+
+		/**
+		*	\brief \e Default assignment copy operator.
+		*
+		*	\return self transform assigned.
+		*/
+		Tr& operator=(const Tr&) = default;
+
+
+		/**
+		*	\brief \b Multiply transform to compute transformation.
+		*
+		*	\param[in] _rhs		Transform to multiply.
+		*
+		*	\return new transform result.
+		*/
+		Tr operator*(const Tr& _rhs) const noexcept
+		{
+			const bool bHasRotation = !rotation.IsIdentity();
+			const bool bRHSHasRotation = !_rhs.rotation.IsIdentity();
+
+			Tr out;
+
+			// Position
+			out.position = position + (bHasRotation ? rotation.Rotate(_rhs.position) : _rhs.position);
+
+			// Rotation
+			if (bHasRotation)
+			{
+				if (bRHSHasRotation)
+				{
+					out.rotation = rotation * _rhs.rotation;
+				}
+				else
+				{
+					out.rotation = rotation;
+				}
+			}
+			else if (bRHSHasRotation)
+			{
+				out.rotation = _rhs.rotation;
+			}
+
+			// Scale
+			out.scale = scale * _rhs.scale;
+
+			return out;
+		}
+
+		/**
+		*	\brief \b Divide transform to compute inverse-transformation.
+		*
+		*	\param[in] _rhs		Transform to divide.
+		*
+		*	\return new transform result.
+		*/
+		Tr operator/(const Tr& _rhs) const noexcept
+		{
+			const bool bHasRotation = !rotation.IsIdentity();
+			const bool bRHSHasRotation = !_rhs.rotation.IsIdentity();
+
+			Tr out;
+
+			// Position
+			out.position = position - (bHasRotation ? rotation.Rotate(_rhs.position) : _rhs.position);
+
+			// Rotation
+			if (bHasRotation)
+			{
+				if (bRHSHasRotation)
+				{
+					out.rotation = rotation / _rhs.rotation;
+				}
+				else
+				{
+					out.rotation = rotation;
+				}
+			}
+			else if (bRHSHasRotation)
+			{
+				out.rotation = _rhs.rotation;
+			}
+
+			// Scale
+			out.scale = scale / _rhs.scale;
+
+			return out;
+		}
+
+		/**
+		*	\brief \b Multiply transform to compute transformation.
+		*
+		*	\param[in] _rhs		Transform to multiply.
+		*
+		*	\return self transform result.
+		*/
+		Tr& operator*=(const Tr& _rhs) noexcept
+		{
+			return *this = *this * _rhs;
+		}
+
+		/**
+		*	\brief \b Divide transform to compute inverse-transformation.
+		*
+		*	\param[in] _rhs		Transform to divide.
+		*
+		*	\return self transform result.
+		*/
+		Tr& operator/=(const Tr& _rhs) noexcept
+		{
+			return *this = *this / _rhs;
+		}
+
+//}
+	};
+
+
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Tr<T> _tr) noexcept
+	{
+		return "Tr{\tT: " + edo::ToString(_tr.position) +
+			"R: " + edo::ToString(_tr.rotation) +
+			"S: " + edo::ToString(_tr.scale) + "\t}";
+	}
+#endif // edo_debug
+
+
+//{ Aliases
+
+	/// Alias for float Tr.
+	using Trf = Tr<float>;
+
+	/// Alias for double Tr.
+	using Trd = Tr<double>;
+
+
+	/// Template alias of Tr
+	template <typename T>
+	using Transform = Tr<T>;
+
+	/// Alias for float Transform.
+	using Transformf = Transform<float>;
+
+	/// Alias for double Transform.
+	using Transformd = Transform<double>;
+
+//}
+
+// ##############################################################
 }
 
 #endif // EDO_SH_MATHS_GUARD
