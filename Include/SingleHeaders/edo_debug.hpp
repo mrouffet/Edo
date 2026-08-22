@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <source_location>
+//#include <debugging>
 
 #if !defined(NDEBUG) || defined(_DEBUG)
 	/// Edo Debug preprocessor.
@@ -26,6 +27,11 @@
 /// Option to enable log preprocessor in Release
 #ifndef EDO_DEBUG_ENABLE_LOG_RELEASE
 #define EDO_DEBUG_ENABLE_LOG_RELEASE 0
+#endif
+
+/// Option to enable IDE Break on assertion.
+#ifndef EDO_DEBUG_ENABLE_ASSERT_BREAK
+#define EDO_DEBUG_ENABLE_ASSERT_BREAK 0
 #endif
 
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
@@ -1790,6 +1796,12 @@ namespace edo
 	#define __EDO_LOG_FRAME_NUM\
 		edo::Debug::logger ? edo::Debug::logger->GetFrameNum() : 0u
 
+#if EDO_DEBUG_ENABLE_ASSERT_BREAK
+	#define __EDO_BREAK() std::breakpoint()
+#else
+	#define __EDO_BREAK()
+#endif
+
 	#define __EDO_LOGGER(_log)\
 		if (edo::Debug::logger)\
 			edo::Debug::logger->Log(_log);\
@@ -1834,7 +1846,7 @@ namespace edo
 	#define __EDO_ASSERT4(_str, _lvl, _chan, _dets){\
 		auto exc = __EDO_CREATE_LOG(_str, _lvl, _chan, _dets);\
 		if (exc.level != edo::LogLevel::AssertFailure) { __EDO_ASSERT(std::move(exc)); }\
-		else { __EDO_ASSERT(exc); throw exc; }\
+		else { __EDO_ASSERT(exc); __EDO_BREAK(); throw exc; }\
 	}
 	#define __EDO_ASSERT3(_str, _lvl, _chan)	__EDO_ASSERT4(_str, _lvl, _chan, L"")
 	#define __EDO_ASSERT2(_str, _lvl)			__EDO_ASSERT3(_str, _lvl, Default)
@@ -1849,6 +1861,15 @@ namespace edo
 	*	Helper macro to track frame number used for logging.
 	*/
 	#define EDO_LOG_END_OF_FRAME() { if(edo::Debug::logger) edo::Debug::logger->IncrementFrameNum(); }
+
+	/**
+	*	\def EDO_BREAK()
+	*
+	*	\brief Edo IDE breakpoint macro
+	* 
+	*	Requires `EDO_DEBUG_ENABLE_ASSERT_BREAK` option (default ON)
+	*/
+	#define EDO_BREAK() { __EDO_BREAK(); }
 
 	/**
 	*	\def EDO_LOG(_fstr, _lvl, _chan, _dets)
@@ -1932,6 +1953,8 @@ namespace edo
 #else
 
 	#define EDO_LOG_END_OF_FRAME() {}
+
+	#define EDO_BREAK() {}
 
 	#define EDO_LOG(...) {}
 	#define EDO_WARN(...) {}
