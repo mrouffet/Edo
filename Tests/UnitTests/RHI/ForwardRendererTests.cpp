@@ -10,6 +10,8 @@ namespace edo::UT::RHI
 	{
 		// Init
 		{
+			edo::Debug::logger->EnableLevel(edo::LogLevel::Verbose);
+
 			edo::rhi::Initialize();
 
 			device.Create();

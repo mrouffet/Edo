@@ -700,9 +700,12 @@ namespace edo::rhi
 		EDO_LOG("Create VkInstance success.", Verbose, Edo.RHI.VK, intl::gInstance);
 
 	#if EDO_CONFIG_DEBUG
+		EDO_ERROR(!intl::gDebugMessenger, Edo.RHI.VK, L"Try initializing already initialized API Debug callback!");
+
 		// Validation Layers
 		{
 			auto createDebugFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(intl::gInstance, "vkCreateDebugUtilsMessengerEXT");
+
 			if (createDebugFunc)
 			{
 				const VkResult vrDebugCreated = createDebugFunc(intl::gInstance, &debugUtilsInfo, nullptr, &intl::gDebugMessenger);
@@ -747,16 +750,20 @@ namespace edo::rhi
 		EDO_ERROR(intl::gInstance, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
 
 	#if EDO_CONFIG_DEBUG
-		auto destroyDebugFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(intl::gInstance, "vkDestroyDebugUtilsMessengerEXT");
-		if (destroyDebugFunc)
+		if (intl::gDebugMessenger != VK_NULL_HANDLE)
 		{
-			destroyDebugFunc(intl::gInstance, intl::gDebugMessenger, nullptr);
-			EDO_LOG(L"Destroy Debug Messenger success.", Verbose, Edo.RHI.VK, intl::gDebugMessenger);
-			intl::gDebugMessenger = VK_NULL_HANDLE;
-		}
-		else
-		{
-			EDO_LOG(L"Extension PFN_vkDestroyDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK);
+			auto destroyDebugFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(intl::gInstance, "vkDestroyDebugUtilsMessengerEXT");
+
+			if (destroyDebugFunc)
+			{
+				destroyDebugFunc(intl::gInstance, intl::gDebugMessenger, nullptr);
+				EDO_LOG(L"Destroy Debug Messenger success.", Verbose, Edo.RHI.VK, intl::gDebugMessenger);
+				intl::gDebugMessenger = VK_NULL_HANDLE;
+			}
+			else
+			{
+				EDO_LOG(L"Extension PFN_vkDestroyDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK);
+			}
 		}
 	#endif
 
