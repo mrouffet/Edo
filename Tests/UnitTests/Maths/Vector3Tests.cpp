@@ -340,4 +340,15 @@ namespace edo::UT::Vector3
 		v8 /= v2;
 		EXPECT_EQ(v8, v1dv2);
 	}
+
+	TYPED_TEST(Vector3Test, ToString)
+	{
+		// Value constructor.
+		const TypeParam v1X = TypeParam{ 5.23 };
+		const TypeParam v1Y = TypeParam{ 9.487 };
+		const TypeParam v1Z = TypeParam{ 10.325 };
+		const Vec3T v1(v1X, v1Y, v1Z);
+
+		EDO_LOG(v1);
+	}
 }

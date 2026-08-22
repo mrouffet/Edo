@@ -735,6 +735,40 @@ namespace edo
 	};
 
 
+	/**
+	*	\brief _rad \b literal operator.
+	*
+	*	\param[in] _lit		Operand to convert to Radian.
+	*
+	*	\return \c Radian without maths-conversion.
+	*/
+	constexpr Rad<float> operator""_rad(unsigned long long _lit) noexcept
+	{
+		return Rad<float>(static_cast<float>(_lit));
+	}
+
+	/**
+	*	\brief _rad \b literal operator.
+	*
+	*	\param[in] _lit		Operand to convert to Radian.
+	*
+	*	\return \c Radian without maths-conversion.
+	*/
+	constexpr Rad<double> operator""_rad(long double _lit) noexcept
+	{
+		return Rad<double>(static_cast<double>(_lit));
+	}
+
+
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Rad<T> _rad) noexcept
+	{
+		return edo::ToString(_rad.Handle()) + "_rad";
+	}
+#endif // edo_debug
+
+
 //{ Aliases
 
 	/// Alias for float Rad.
@@ -748,31 +782,6 @@ namespace edo
 	using Radian = Rad<T>;
 
 //}
-
-
-	/**
-	*	\brief _rad \b literal operator.
-	*
-	*	\param[in] _lit		Operand to convert to Radian.
-	*
-	*	\return \c Radian without maths-conversion.
-	*/
-	constexpr Radf operator""_rad(unsigned long long _lit) noexcept
-	{
-		return Radf(static_cast<float>(_lit));
-	}
-
-	/**
-	*	\brief _rad \b literal operator.
-	*
-	*	\param[in] _lit		Operand to convert to Radian.
-	*
-	*	\return \c Radian without maths-conversion.
-	*/
-	constexpr Radd operator""_rad(long double _lit) noexcept
-	{
-		return Radd(static_cast<double>(_lit));
-	}
 
 // ##############################################################
 
@@ -1095,6 +1104,40 @@ namespace edo
 	};
 
 
+	/**
+	*	\brief _deg \b literal operator.
+	*
+	*	\param[in] _lit		Operand to convert to Degree.
+	*
+	*	\return \c Degree without maths-conversion.
+	*/
+	constexpr Deg<float> operator""_deg(unsigned long long _lit) noexcept
+	{
+		return Deg<float>(static_cast<float>(_lit));
+	}
+
+	/**
+	*	\brief _deg \b literal operator.
+	*
+	*	\param[in] _lit		Operand to convert to Degree.
+	*
+	*	\return \c Degree without maths-conversion.
+	*/
+	constexpr Deg<double> operator""_deg(long double _lit) noexcept
+	{
+		return Deg<double>(static_cast<double>(_lit));
+	}
+
+
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Deg<T> _deg) noexcept
+	{
+		return edo::ToString(_deg.Handle()) + "_deg";
+	}
+#endif // edo_debug
+
+
 //{ Aliases
 
 	/// Alias for float Deg.
@@ -1108,30 +1151,6 @@ namespace edo
 	using Degree = Deg<T>;
 
 //}
-
-	/**
-	*	\brief _deg \b literal operator.
-	*
-	*	\param[in] _lit		Operand to convert to Degree.
-	*
-	*	\return \c Degree without maths-conversion.
-	*/
-	constexpr Degf operator""_deg(unsigned long long _lit) noexcept
-	{
-		return Degf(static_cast<float>(_lit));
-	}
-
-	/**
-	*	\brief _deg \b literal operator.
-	*
-	*	\param[in] _lit		Operand to convert to Degree.
-	*
-	*	\return \c Degree without maths-conversion.
-	*/
-	constexpr Degd operator""_deg(long double _lit) noexcept
-	{
-		return Degd(static_cast<double>(_lit));
-	}
 
 // ##############################################################
 
@@ -1999,6 +2018,16 @@ namespace edo
 		);
 	}
 
+
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Vec2<T> _vec) noexcept
+	{
+		return "Vec2{ X: " + edo::ToString(_vec.x) +
+			"\tY: " + edo::ToString(_vec.y) + " }";
+	}
+
+#endif // edo_debug
 
 //{ Aliases
 
@@ -2967,6 +2996,17 @@ namespace edo
 	}
 
 
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Vec3<T> _vec) noexcept
+	{
+		return "Vec3{ X: " + edo::ToString(_vec.x) +
+			"\tY: " + edo::ToString(_vec.y) +
+			"\tZ: " + edo::ToString(_vec.z) + " }";
+	}
+#endif // edo_debug
+
+
 //{ Aliases
 
 	/// Alias for int32 Vec3.
@@ -3557,6 +3597,18 @@ namespace edo
 			_lhs / _rhs.w
 		);
 	}
+
+
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Vec4<T> _vec) noexcept
+	{
+		return "Vec4{ X: " + edo::ToString(_vec.x) +
+			"\tY: " + edo::ToString(_vec.y) +
+			"\tZ: " + edo::ToString(_vec.z) +
+			"\tW: " + edo::ToString(_vec.w) + " }";
+	}
+#endif // edo_debug
 
 
 //{ Aliases
@@ -4750,6 +4802,18 @@ namespace edo
 	}
 
 
+#if __has_include(<edo_debug.hpp>)
+	template <typename T>
+	std::string ToString(const Quat<T> _quat) noexcept
+	{
+		return "Quat{ W: " + edo::ToString(_quat.w) +
+			"\tX: " + edo::ToString(_quat.x) +
+			"\tY: " + edo::ToString(_quat.y) +
+			"\tZ: " + edo::ToString(_quat.z) + " }";
+	}
+#endif // edo_debug
+
+
 //{ Aliases
 
 	/// Alias for float Quat.
@@ -4860,6 +4924,9 @@ namespace edo
 	template <typename T, MatrixMajor major = MatrixMajor::Default>
 	struct Mat3 : private intl::Mat3_Base<T, major>
 	{
+		/// Type of the Matrix.
+		using Type = T;
+
 		using intl::Mat3_Base<T, major>::e00;
 		using intl::Mat3_Base<T, major>::e01;
 		using intl::Mat3_Base<T, major>::e02;
@@ -5668,6 +5735,29 @@ namespace edo
 	}
 
 
+#if __has_include(<edo_debug.hpp>)
+	template <typename T, MatrixMajor major>
+	std::string ToString(const Mat3<T, major> _mat) noexcept
+	{
+		// Keep memory order (Raw / column major).
+		const T* const data = _mat.Data();
+
+		return "Mat3{\n " +
+			edo::ToString(data[0]) + ",\t" +
+			edo::ToString(data[1]) + ",\t" +
+			edo::ToString(data[2]) + ",\n " +
+
+			edo::ToString(data[3]) + ",\t" +
+			edo::ToString(data[4]) + ",\t" +
+			edo::ToString(data[5]) + ",\n " +
+
+			edo::ToString(data[6]) + ",\t" +
+			edo::ToString(data[7]) + ",\t" +
+			edo::ToString(data[8]) + "\n}";
+	}
+#endif // edo_debug
+
+
 //{ Aliases
 
 	/// Alias for int32 Mat3.
@@ -5801,6 +5891,9 @@ namespace edo
 	template <typename T, MatrixMajor major = MatrixMajor::Default>
 	struct Mat4 : private intl::Mat4_Base<T, major>
 	{
+		/// Type of the Matrix.
+		using Type = T;
+
 		using intl::Mat4_Base<T, major>::e00;
 		using intl::Mat4_Base<T, major>::e01;
 		using intl::Mat4_Base<T, major>::e02;
@@ -7015,6 +7108,38 @@ namespace edo
 			_lhs / _rhs.e30, _lhs / _rhs.e31, _lhs / _rhs.e32, _lhs / _rhs.e33
 		);
 	}
+
+
+#if __has_include(<edo_debug.hpp>)
+	template <typename T, MatrixMajor major>
+	std::string ToString(const Mat4<T, major> _mat) noexcept
+	{
+		// Keep memory order (Raw / column major).
+		const T* const data = _mat.Data();
+
+		return "Mat4{\n " +
+			edo::ToString(data[0]) + ",\t" +
+			edo::ToString(data[1]) + ",\t" +
+			edo::ToString(data[2]) + ",\t" +
+			edo::ToString(data[3]) + ",\n " +
+
+			edo::ToString(data[4]) + ",\t" +
+			edo::ToString(data[5]) + ",\t" +
+			edo::ToString(data[6]) + ",\t" +
+			edo::ToString(data[7]) + ",\n " +
+
+			edo::ToString(data[8]) + ",\t" +
+			edo::ToString(data[9]) + ",\t" +
+			edo::ToString(data[10]) + ",\t" +
+			edo::ToString(data[11]) + ",\n " +
+
+			edo::ToString(data[12]) + ",\t" +
+			edo::ToString(data[13]) + ",\t" +
+			edo::ToString(data[14]) + ",\t" +
+			edo::ToString(data[15]) + "\n}";
+	}
+#endif // edo_debug
+
 
 //{ Aliases
 
