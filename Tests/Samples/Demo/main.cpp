@@ -15,10 +15,13 @@ void GLFWErrorCallback(int32_t error, const char* description)
 	EDO_LOG((L"GLFW Error [%1]: %2", error, description), Error, Edo.GLFW.API);
 }
 
+constexpr uint32_t bufferingCount = 3;
 constexpr Vec2ui windowSize = { 1200, 900 };
 
 rhi::Device device;
 rhi::Swapchain swapchain;
+
+std::array<rhi::CommandList, bufferingCount> cmdLists;
 
 int main()
 {
@@ -57,9 +60,15 @@ int main()
 			rhi::SwapchainDesc scDesc{
 				.width = windowSize.x,
 				.height = windowSize.y,
+				.bufferingCount = bufferingCount,
 				.surface = rhi::GLFWSurfaceHandle(window)
 			};
 			swapchain.Create(device, scDesc);
+
+			for (uint32_t i = 0; i < bufferingCount; ++i)
+			{
+				cmdLists[i] = device.CreateCommandList();
+			}
 		}
 	}
 
@@ -100,6 +109,10 @@ int main()
 	{
 		// Render
 		{
+			for (uint32_t i = 0; i < bufferingCount; ++i)
+			{
+				device.DestroyCommandList(cmdLists[i]);
+			}
 
 			swapchain.Destroy(device);
 			device.Destroy();

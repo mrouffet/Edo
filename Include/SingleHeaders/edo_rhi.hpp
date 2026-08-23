@@ -94,6 +94,8 @@ namespace edo::rhi
 
 	class Swapchain;
 
+	class CommandList;
+
 	class Shader;
 
 	struct GfxPipelineDesc;
@@ -800,7 +802,7 @@ namespace edo::rhi
 		MComPtr<IDXGIAdapter3> mAdapter = nullptr;
 
 		/// Logical Device
-		MComPtr<ID3D12Device> mHandle = nullptr;
+		MComPtr<ID3D12Device4> mHandle = nullptr;
 
 		MComPtr<ID3D12CommandQueue> mGraphicsQueue;
 		MComPtr<ID3D12CommandQueue> mComputeQueue;
@@ -812,7 +814,7 @@ namespace edo::rhi
 	public:
 		ID3D12CommandQueue* GetGraphicsQueue() const { return mGraphicsQueue.Get(); }
 		ID3D12CommandQueue* GetComputeQueue() const { return mComputeQueue.Get(); }
-		ID3D12Device* operator->() const { return mHandle.Get(); }
+		ID3D12Device4* operator->() const { return mHandle.Get(); }
 
 #endif // EDO_RHI_DX12
 
@@ -833,6 +835,9 @@ namespace edo::rhi
 	public:
 		void Create();
 		void Destroy();
+
+		CommandList CreateCommandList();
+		void DestroyCommandList(CommandList& _cmd);
 
 		Pipeline CreatePipeline(const GfxPipelineDesc& _desc);
 		Pipeline CreatePipeline(const CompPipelineDesc& _desc);
@@ -951,7 +956,7 @@ namespace edo::rhi
 			const HRESULT hrQueryGPU = intl::gFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
 			EDO_DX12_ASSERT(hrQueryGPU, L"Adapter not found!");
 
-			const HRESULT hrDeviceCreated = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mHandle));
+			const HRESULT hrDeviceCreated = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&mHandle));
 			EDO_DX12_ASSERT(hrDeviceCreated, L"Create Device failed!");
 
 			const LPCWSTR name = L"Edo_Device";
@@ -1083,11 +1088,18 @@ namespace edo::rhi
 	{
 	public:
 #if EDO_RHI_DX12
+		/**
+		* Retreive Windows native HWND from Window API
+		*/
 		virtual HWND GetHWND() const = 0;
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-		virtual VkSurfaceKHR GetVkSurfaceKHR() const = 0;
+		/**
+		* \brief Create a `VkSurfaceKHR` from window API surface.
+		* /!\ \b Ownership of the created VkSurfaceKHR belongs to the \b Swapchain, not the SurfaceHandle /!\ 
+		*/
+		virtual VkSurfaceKHR CreateVkSurfaceKHR() const = 0;
 #endif // EDO_RHI_VK
 	};
 
@@ -1113,7 +1125,7 @@ namespace edo::rhi
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-		VkSurfaceKHR GetVkSurfaceKHR() const override final;
+		VkSurfaceKHR CreateVkSurfaceKHR() const override final;
 #endif // EDO_RHI_VK
 	};
 
@@ -1133,7 +1145,7 @@ namespace edo::rhi
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-	VkSurfaceKHR GLFWSurfaceHandle::GetVkSurfaceKHR() const
+	VkSurfaceKHR GLFWSurfaceHandle::CreateVkSurfaceKHR() const
 	{
 		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
 
@@ -1193,7 +1205,6 @@ namespace edo::rhi
 	};
 
 #if EDO_RHI_IMPLEMENTATION
-
 	void Swapchain::Create(const Device& _device, const SwapchainDesc& _desc)
 	{
 #if EDO_RHI_DX12
@@ -1282,7 +1293,89 @@ namespace edo::rhi
 		mHandle = nullptr;
 #endif // EDO_RHI_DX12
 	}
+#endif // EDO_RHI_IMPLEMENTATION
 
+// ##############################################################
+
+
+// ##############################################################
+// #						COMMAND								#
+// ##############################################################
+
+	class CommandList
+	{
+#if EDO_RHI_DX12
+		MComPtr<ID3D12GraphicsCommandList6> mHandle = nullptr;
+		MComPtr<ID3D12CommandAllocator> mAlloc = nullptr;
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VULKAN
+#endif // EDO_RHI_VULKAN
+
+	public:
+		void Create(const Device& _device);
+		void Destroy(const Device& _device);
+	};
+
+#if EDO_RHI_IMPLEMENTATION
+	void CommandList::Create(const Device& _device)
+	{
+#if EDO_RHI_DX12
+		// Allocator
+		{
+			const HRESULT hrCmdAllocCreated = _device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mAlloc));
+			EDO_DX12_ASSERT(hrCmdAllocCreated, L"Create Command Allocator failed!");
+
+			const std::wstring name = L"Edo_CommandAlloc";
+			mAlloc->SetName(name.c_str());
+
+			EDO_LOG(L"Create Command Allocator success", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mAlloc.Get()));
+		}
+
+		// Command List
+		{
+			const HRESULT hrCmdListCreated = _device->CreateCommandList1(0,
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				D3D12_COMMAND_LIST_FLAG_NONE,
+				IID_PPV_ARGS(&mHandle));
+			EDO_DX12_ASSERT(hrCmdListCreated, "Create Command List failed!");
+
+			const LPCWSTR name = L"Edo_CommandList";
+			mHandle->SetName(name);
+
+			EDO_LOG(L"Create Command List success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+		}
+#endif // EDO_RHI_DX12
+	}
+
+	void CommandList::Destroy(const Device& _device)
+	{
+#if EDO_RHI_DX12
+		(void)_device;
+
+		EDO_LOG(L"Destroying Command List...", Verbose, Edo.RHI.DX12, mHandle.Get());
+		mHandle = nullptr;
+
+		EDO_LOG(L"Destroying Command Allocator...", Verbose, Edo.RHI.DX12, mAlloc.Get());
+		mAlloc = nullptr;
+#endif // EDO_RHI_DX12
+	}
+
+
+	// ========== Device Shortcut ==========
+	CommandList Device::CreateCommandList()
+	{
+		CommandList cmd;
+
+		cmd.Create(*this);
+
+		return cmd;
+	}
+
+	void Device::DestroyCommandList(CommandList& _cmd)
+	{
+		_cmd.Destroy(*this);
+	}
 #endif // EDO_RHI_IMPLEMENTATION
 
 // ##############################################################
