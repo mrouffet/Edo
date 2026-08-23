@@ -2,10 +2,12 @@
 
 # ===== Target =====
 
-file(GLOB_RECURSE EDO_EVENT_UT_SOURCES "*.cpp")
+file(GLOB_RECURSE EDO_UT_EVENT_SOURCES "*.cpp")
 
-add_executable(Edo_EventUT "../main.cpp" ${EDO_EVENT_UT_SOURCES})
+add_executable(Edo_UT_Event "../main.cpp" ${EDO_UT_EVENT_SOURCES})
 
-target_link_libraries(Edo_EventUT PRIVATE Edo GTest::gtest_main)
+target_link_libraries(Edo_UT_Event
+	PRIVATE EdoBase GTest::gtest_main
+)
 
-gtest_discover_tests(Edo_EventUT)
+gtest_discover_tests(Edo_UT_Event)

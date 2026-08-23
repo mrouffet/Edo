@@ -2,10 +2,12 @@
 
 # ===== Target =====
 
-file(GLOB_RECURSE EDO_DEBUG_UT_SOURCES "*.cpp")
+file(GLOB_RECURSE EDO_UT_DEBUG_SOURCES "*.cpp")
 
-add_executable(Edo_DebugUT "../main.cpp" ${EDO_DEBUG_UT_SOURCES})
+add_executable(Edo_UT_Debug "../main.cpp" ${EDO_UT_DEBUG_SOURCES})
 
-target_link_libraries(Edo_DebugUT PRIVATE Edo GTest::gtest_main)
+target_link_libraries(Edo_UT_Debug
+	PRIVATE EdoBase GTest::gtest_main
+)
 
-gtest_discover_tests(Edo_DebugUT)
+gtest_discover_tests(Edo_UT_Debug)

@@ -2,11 +2,6 @@
 
 
 
-# Project
-
-project(Edo_UnitTests)
-
-
 # ===== GoogleTest Module =====
 EDO_FFIPackage(
 	CMAKE_TARGET		googletest
