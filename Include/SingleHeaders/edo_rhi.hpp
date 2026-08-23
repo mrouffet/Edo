@@ -61,6 +61,18 @@ namespace edo::rhi
 	using MComPtr = Microsoft::WRL::ComPtr<T>;
 }
 
+#if !defined(EDO_RHI_GLFW)
+	#if __has_include(<GLFW/glfw3.h>) && __has_include(<GLFW/glfw3native.h>)
+		#define EDO_RHI_GLFW 1
+
+		#define GLFW_EXPOSE_NATIVE_WIN32
+		#include <GLFW/glfw3.h>
+		#include <GLFW/glfw3native.h>
+	#else
+		#define EDO_RHI_GLFW 0
+	#endif
+#endif // GLFW
+
 #endif
 
 #if EDO_RHI_VK
@@ -75,7 +87,7 @@ namespace edo::rhi
 namespace edo::rhi
 {
 // ##############################################################
-// #					TYPES									#
+// #						TYPES								#
 // ##############################################################
 
 	class Device;
@@ -98,7 +110,7 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					Format									#
+// #						Format								#
 // ##############################################################
 
 	enum class Format
@@ -457,7 +469,7 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					INSTANCE								#
+// #						INSTANCE							#
 // ##############################################################
 
 	void Initialize();
@@ -776,7 +788,7 @@ namespace edo::rhi
 #endif
 
 // ##############################################################
-// #					DEVICE									#
+// #						DEVICE								#
 // ##############################################################
 
 	class Device
@@ -790,11 +802,16 @@ namespace edo::rhi
 		/// Logical Device
 		MComPtr<ID3D12Device> mHandle = nullptr;
 
+		MComPtr<ID3D12CommandQueue> mGraphicsQueue;
+		MComPtr<ID3D12CommandQueue> mComputeQueue;
+
 	#if EDO_CONFIG_DEBUG
 		DWORD mVLayerCallbackCookie = 0;
 	#endif
 
 	public:
+		ID3D12CommandQueue* GetGraphicsQueue() const { return mGraphicsQueue.Get(); }
+		ID3D12CommandQueue* GetComputeQueue() const { return mComputeQueue.Get(); }
 		ID3D12Device* operator->() const { return mHandle.Get(); }
 
 #endif // EDO_RHI_DX12
@@ -925,20 +942,23 @@ namespace edo::rhi
 	void Device::Create()
 	{
 #if EDO_RHI_DX12
-		EDO_ASSERT(intl::gFactory, Edo.RHI.DX12, L"API not initialized. Call edo::rhi::Initialize() first!");
-		EDO_ERROR(!mAdapter, Edo.RHI.DX12, L"Try create an already created device!");
-		EDO_ERROR(!mHandle, Edo.RHI.DX12, L"Try create an already created device!");
+		// Device
+		{
+			EDO_ASSERT(intl::gFactory, Edo.RHI.DX12, L"API not initialized. Call edo::rhi::Initialize() first!");
+			EDO_ERROR(!mAdapter, Edo.RHI.DX12, L"Try create an already created device!");
+			EDO_ERROR(!mHandle, Edo.RHI.DX12, L"Try create an already created device!");
 
-		const HRESULT hrQueryGPU = intl::gFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
-		EDO_DX12_ASSERT(hrQueryGPU, L"Adapter not found!");
+			const HRESULT hrQueryGPU = intl::gFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
+			EDO_DX12_ASSERT(hrQueryGPU, L"Adapter not found!");
 
-		const HRESULT hrDeviceCreated = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mHandle));
-		EDO_DX12_ASSERT(hrDeviceCreated, L"Create Device failed!");
-		
-		const LPCWSTR name = L"Edo Main Device";
-		mHandle->SetName(name);
+			const HRESULT hrDeviceCreated = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mHandle));
+			EDO_DX12_ASSERT(hrDeviceCreated, L"Create Device failed!");
 
-		EDO_LOG(L"Create Device success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+			const LPCWSTR name = L"Edo_Device";
+			mHandle->SetName(name);
+
+			EDO_LOG(L"Create Device success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+		}
 
 	#if EDO_CONFIG_DEBUG
 		// Validation Layers
@@ -962,15 +982,63 @@ namespace edo::rhi
 			}
 		}
 	#endif
+		
+		// Queues
+		{
+			// GFX
+			{
+				const D3D12_COMMAND_QUEUE_DESC desc{
+					.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+					.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+				};
 
+				const HRESULT hrGFXCmdQueueCreated = mHandle->CreateCommandQueue(&desc, IID_PPV_ARGS(&mGraphicsQueue));
+				EDO_DX12_ASSERT(hrGFXCmdQueueCreated, L"Create Graphics Queue failed!");
+				
+				const LPCWSTR name = L"Edo_GraphicsQueue";
+				mGraphicsQueue->SetName(name);
+
+				EDO_LOG(L"Create Graphics Queue success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mGraphicsQueue.Get()));
+			}
+
+			// CMP
+			{
+				const D3D12_COMMAND_QUEUE_DESC desc{
+					.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
+					.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+				};
+
+				const HRESULT hrCMDCmdQueueCreated = mHandle->CreateCommandQueue(&desc, IID_PPV_ARGS(&mComputeQueue));
+				EDO_DX12_ASSERT(hrCMDCmdQueueCreated, L"Create Compute Queue failed!");
+
+				const LPCWSTR name = L"Edo_ComputeQueue";
+				mComputeQueue->SetName(name);
+
+				EDO_LOG(L"Create Compute Queue success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mComputeQueue.Get()));
+			}
+		}
 #endif // EDO_RHI_DX12
 	}
 
 	void Device::Destroy()
 	{
 #if EDO_RHI_DX12
-
 		EDO_ERROR(mHandle && mAdapter, Edo.RHI.DX12, L"Try destroying already null device!", return;);
+
+		// Queue
+		{
+			// GFX
+			{
+				EDO_LOG(L"Destroying Graphics Queue...", Verbose, Edo.RHI.DX12, mGraphicsQueue.Get());
+				mGraphicsQueue = nullptr;
+			}
+
+			// CMP
+			{
+				EDO_LOG(L"Destroying Compute Queue...", Verbose, Edo.RHI.DX12, mComputeQueue.Get());
+				mComputeQueue = nullptr;
+			}
+		}
 
 	#if EDO_CONFIG_DEBUG
 		if (mVLayerCallbackCookie)
@@ -995,7 +1063,6 @@ namespace edo::rhi
 
 		mHandle = nullptr;
 		mAdapter = nullptr;
-
 #endif // EDO_RHI_DX12
 	}
 
@@ -1005,36 +1072,219 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					SWAPCHAIN								#
+// #						SURFACE								#
 // ##############################################################
+
+	/**
+	* Interface to be implemented by the user to provide
+	* windowing/surface to the render.
+	*/
+	class ISurface
+	{
+	public:
+#if EDO_RHI_DX12
+		virtual HWND GetHWND() const = 0;
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		virtual VkSurfaceKHR GetVkSurfaceKHR() const = 0;
+#endif // EDO_RHI_VK
+	};
+
+
+// ##################################
+// #			GLFW				#
+// ##################################
+
+#if EDO_RHI_GLFW
+	/**
+	* Provided base implementation for GLFW interface.
+	*/
+	class GLFWSurface : public ISurface
+	{
+	protected:
+		mutable GLFWwindow* mHandle = nullptr;
+
+	public:
+		void Create(GLFWwindow* _window);
+		void Destroy();
+
+#if EDO_RHI_DX12
+		HWND GetHWND() const override final;
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		VkSurfaceKHR GetVkSurfaceKHR() const override final;
+#endif // EDO_RHI_VK
+	};
+
+#if EDO_RHI_IMPLEMENTATION
+	void GLFWSurface::Create(GLFWwindow* _window)
+	{
+		EDO_ASSERT(_window, Edo.RHI.GLFW, L"Try creating Surface from null window!");
+		mHandle = _window;
+	}
+
+	void GLFWSurface::Destroy()
+	{
+		mHandle = nullptr;
+	}
+
+#if EDO_RHI_DX12
+	HWND GLFWSurface::GetHWND() const
+	{
+		return glfwGetWin32Window(mHandle);
+	}
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+	VkSurfaceKHR GLFWSurface::GetVkSurfaceKHR() const
+	{
+		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
+		const VkResult vrSurfaceCreated = glfwCreateWindowSurface(intl::GInstance, mHandle, nullptr, &surfaceKHR);
+		EDO_VK_ASSERET(vrSurfaceCreated, L"Create Window Surafce failed!");
+			
+		SA_LOG("Create Window Surface success.", Verbose, Edo.RHI.GLFW, surfaceKHR);
+
+		return surfaceKHR;
+	}
+#endif // EDO_RHI_VK
+#endif // EDO_RHI_IMPLEMENTATION
+
+#endif // EDO_RHI_GLFW
+
+// ##################################
+
+// ##############################################################
+
+
+// ##############################################################
+// #						SWAPCHAIN							#
+// ##############################################################
+
+	struct SwapchainDesc
+	{
+		uint32_t width = 0;
+		uint32_t height = 0;
+		uint32_t bufferingCount = 3;
+		const ISurface* surface = nullptr;
+	};
 
 	class Swapchain
 	{
 #if EDO_RHI_DX12
 
-		MComPtr<IDXGISwapChain3> mSwapchain = nullptr;
+		MComPtr<IDXGISwapChain3> mHandle = nullptr;
+		std::vector<MComPtr<ID3D12Resource>> mBackBuffers{ nullptr };
+
+		HANDLE mFenceEvent = nullptr;
+		MComPtr<ID3D12Fence> mFence;
+		std::vector<uint32_t> mFenceValues{ 0u };
 
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
 
-		VkSwapchainKHR mSwapchain = VK_NULL_HANDLE;
+		VkSwapchainKHR mHandle = VK_NULL_HANDLE;
 
 #endif // EDO_RHI_VK
 
 	public:
-		void Create();
-		void Destroy();
+		void Create(const Device& _device, const SwapchainDesc& _desc);
+		void Destroy(const Device& _device);
 	};
 
 #if EDO_RHI_IMPLEMENTATION
 
-	void Swapchain::Create()
+	void Swapchain::Create(const Device& _device, const SwapchainDesc& _desc)
 	{
+#if EDO_RHI_DX12
+		EDO_ASSERT(_desc.surface, Edo.RHI.DX12, L"Valid Surface must be provided! Please implement ISurface interface.");
+
+		// Swapchain
+		{
+			const DXGI_SWAP_CHAIN_DESC1 desc{
+				.Width = _desc.width,
+				.Height = _desc.height,
+				.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+				.Stereo = false,
+				.SampleDesc = {.Count = 1, .Quality = 0 },
+				.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+				.BufferCount = _desc.bufferingCount,
+				.Scaling = DXGI_SCALING_STRETCH,
+				.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+				.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
+				.Flags = 0,
+			};
+
+			MComPtr<IDXGISwapChain1> swapchain1;
+			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface->GetHWND(), &desc, nullptr, nullptr, &swapchain1);
+			EDO_DX12_ASSERT(hrSwapChainCreated, L"Create Swapchain failed!");
+
+			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.DX12, swapchain1.Get());
+
+			const HRESULT hrSwapChainCast = swapchain1.As(&mHandle);
+			EDO_DX12_ASSERT(hrSwapChainCast, L"Swapchain cast failed!");
+		}
+
+
+		// Query back buffers
+		{
+			mBackBuffers.resize(_desc.bufferingCount);
+
+			for (uint32_t i = 0; i < _desc.bufferingCount; ++i)
+			{
+				const HRESULT hrSwapChainGetBuffer = mHandle->GetBuffer(i, IID_PPV_ARGS(&mBackBuffers[i]));
+				EDO_DX12_ASSERT(hrSwapChainGetBuffer, (L"Get Swapchain Buffer [%1] failed!", i));
+
+				const std::wstring name = L"Edo_Swapchain_BackBuffer [" + std::to_wstring(i) + L"]";
+				mBackBuffers[i]->SetName(name.data());
+
+				EDO_LOG((L"Query Swapchain Buffer [%1] success.", i), Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mBackBuffers[i].Get()));
+			}
+		}
+
+		
+		// Sync
+		{
+			mFenceEvent = CreateEvent(nullptr, false, false, nullptr);
+			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12, L"Create Swapchain Fence Event failed!");
+
+			const HRESULT hrSwapChainFenceCreated = _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
+			EDO_DX12_ASSERT(hrSwapChainFenceCreated, L"Create Swapchain Fence failed!");
+			
+			const LPCWSTR name = L"Edo_Swapchain_Fence";
+			mFence->SetName(name);
+
+			EDO_LOG(L"Create Swapchain Fence success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mFence.Get()));
+		}
+#endif
 	}
 
-	void Swapchain::Destroy()
+	void Swapchain::Destroy(const Device& _device)
 	{
+#if EDO_RHI_DX12
+		(void)_device;
+
+		// Sync
+		{
+			CloseHandle(mFenceEvent);
+			EDO_LOG(L"Destroy Swapchain Fence Event success", Verbose, Edo.RHI.DX12, mFenceEvent);
+			mFenceEvent = nullptr;
+
+			EDO_LOG(L"Destroying Swapchain Fence...", Verbose, Edo.RHI.DX12, mFence.Get());
+			mFence = nullptr;
+		}
+
+		for (size_t i = 0; i < mBackBuffers.size(); ++i)
+		{
+			EDO_LOG((L"Destroying Swapchain image [%1]...", i), Verbose, Edo.RHI.DX12, mBackBuffers[i].Get());
+			mBackBuffers[i] = nullptr;
+		}
+
+		EDO_LOG(L"Destroying Swapchain...", Verbose, Edo.RHI.DX12, mHandle.Get());
+		mHandle = nullptr;
+#endif // EDO_RHI_DX12
 	}
 
 #endif // EDO_RHI_IMPLEMENTATION
@@ -1043,7 +1293,7 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					SHADER									#
+// #						SHADER								#
 // ##############################################################
 
 	class Shader
@@ -1065,7 +1315,7 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					PIPELINE								#
+// #						PIPELINE							#
 // ##############################################################
 
 	enum class PolygonMode : uint8_t
@@ -1745,7 +1995,7 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					BUFFER									#
+// #						BUFFER								#
 // ##############################################################
 
 	enum class BufferType
@@ -1977,7 +2227,7 @@ namespace edo::rhi
 
 
 // ##############################################################
-// #					TEXTURE									#
+// #						TEXTURE								#
 // ##############################################################
 
 	struct TextureDesc
