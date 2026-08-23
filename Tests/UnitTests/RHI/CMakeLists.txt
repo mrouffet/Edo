@@ -1,20 +1,21 @@
 # Copyright (c) 2026 Maxime "mrouffet" ROUFFET. All Rights Reserved.
 
-file(GLOB_RECURSE EDO_RHI_UT_SOURCES "*.cpp")
+file(GLOB_RECURSE EDO_UT_RHI_SOURCES "*.cpp")
 
 
 # ===== Target DX12 =====
 if(WIN32)
 
-	add_executable(Edo_RHI_DX12_UT "../main.cpp" ${EDO_RHI_UT_SOURCES})
+	add_executable(Edo_UT_RHI_DX12 "../main.cpp" ${EDO_UT_RHI_SOURCES})
 
-	target_compile_definitions(Edo_RHI_DX12_UT PRIVATE EDO_UT_RHI_DX12=1)
+	target_compile_definitions(Edo_UT_RHI_DX12 PRIVATE EDO_UT_RHI_DX12=1)
 
-	target_link_libraries(Edo_RHI_DX12_UT PRIVATE Edo GTest::gtest_main)
+	target_link_libraries(Edo_UT_RHI_DX12
+		PRIVATE EdoBase GTest::gtest_main
+		PUBLIC d3d12.lib dxgi.lib dxguid.lib
+	)
 
-	target_link_libraries(Edo_RHI_DX12_UT PUBLIC d3d12.lib dxgi.lib dxguid.lib)
-
-	gtest_discover_tests(Edo_RHI_DX12_UT)
+	gtest_discover_tests(Edo_UT_RHI_DX12)
 
 endif()
 
@@ -22,16 +23,26 @@ endif()
 # ===== Target VK =====
 if(UNIX OR WIN32)
 
-	add_executable(Edo_RHI_VK_UT "../main.cpp" ${EDO_RHI_UT_SOURCES})
-
-	target_compile_definitions(Edo_RHI_VK_UT PRIVATE EDO_UT_RHI_VK=1)
-
-	target_link_libraries(Edo_RHI_VK_UT PRIVATE Edo GTest::gtest_main)
-
 	find_package(Vulkan)
-	target_link_libraries(Edo_RHI_VK_UT PUBLIC Vulkan::Vulkan)
 
-	gtest_discover_tests(Edo_RHI_VK_UT)
+	if(${Vulkan_FOUND})
+
+		add_executable(Edo_UT_RHI_VK "../main.cpp" ${EDO_UT_RHI_SOURCES})
+
+		target_compile_definitions(Edo_UT_RHI_VK PRIVATE EDO_UT_RHI_VK=1)
+
+		target_link_libraries(Edo_UT_RHI_VK
+			PRIVATE EdoBase GTest::gtest_main
+			PUBLIC Vulkan::Vulkan
+		)
+
+		gtest_discover_tests(Edo_UT_RHI_VK)
+
+	else()
+
+		message(AUTHOR_WARNING "Vulkan package not found on expected target. Vulkan SDK installation required.")
+
+	endif()
 
 endif()
 
@@ -39,13 +50,15 @@ endif()
 # ===== Target GL =====
 if(false)
 
-	add_executable(Edo_RHI_GL_UT "../main.cpp" ${EDO_RHI_UT_SOURCES})
+	add_executable(Edo_UT_RHI_GL "../main.cpp" ${EDO_UT_RHI_SOURCES})
 
-	target_compile_definitions(Edo_RHI_GL_UT PRIVATE EDO_UT_RHI_GL=1)
+	target_compile_definitions(Edo_UT_RHI_GL PRIVATE EDO_UT_RHI_GL=1)
 
-	target_link_libraries(Edo_RHI_GL_UT PRIVATE Edo GTest::gtest_main)
+	target_link_libraries(Edo_UT_RHI_GL
+		PRIVATE EdoBase GTest::gtest_main
+	)
 
-	gtest_discover_tests(Edo_RHI_GL_UT)
+	gtest_discover_tests(Edo_UT_RHI_GL)
 
 endif()
 
@@ -53,12 +66,14 @@ endif()
 # ===== Target CPU =====
 if(false)
 
-	add_executable(Edo_RHI_CPU_UT "../main.cpp" ${EDO_RHI_UT_SOURCES})
+	add_executable(Edo_UT_RHI_CPU "../main.cpp" ${EDO_UT_RHI_SOURCES})
 
-	target_compile_definitions(Edo_RHI_CPU_UT PRIVATE EDO_UT_RHI_CPU=1)
+	target_compile_definitions(Edo_UT_RHI_CPU PRIVATE EDO_UT_RHI_CPU=1)
 
-	target_link_libraries(Edo_RHI_CPU_UT PRIVATE Edo GTest::gtest_main)
+	target_link_libraries(Edo_UT_RHI_CPU
+		PRIVATE EdoBase GTest::gtest_main
+	)
 
-	gtest_discover_tests(Edo_RHI_CPU_UT)
+	gtest_discover_tests(Edo_UT_RHI_CPU)
 
 endif()

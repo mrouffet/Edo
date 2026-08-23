@@ -28,40 +28,37 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 
 
-# ===== Target Edo =====
-file(GLOB_RECURSE EDO_SOURCES_CPP "Source/*.cpp")
-file(GLOB_RECURSE EDO_SOURCES_HLSL "Source/*.hlsl")
-
-add_library(Edo STATIC ${EDO_SOURCES_CPP})
+# ===== Target Edo Base =====
+add_library(EdoBase INTERFACE)
 
 # Standard
-target_compile_features(Edo PUBLIC c_std_11 cxx_std_20)
+target_compile_features(EdoBase INTERFACE c_std_11 cxx_std_20)
 
 # Include Dirs
-target_include_directories(Edo PUBLIC Include Include/SingleHeaders)
-
-# Libs
-#target_link_libraries(Edo PUBLIC )
+target_include_directories(EdoBase INTERFACE Include/SingleHeaders)
 
 # Compile options
 if(MSVC)
-	target_compile_options(Edo PUBLIC /W4 /WX)
+	target_compile_options(EdoBase INTERFACE /W4 /WX)
 
 	### Advanced MSVC preprocessor required for edo_debug.hpp
 	### https://docs.microsoft.com/en-us/cpp/preprocessor/preprocessor-experimental-overview
-	target_compile_options(Edo PUBLIC /Zc:preprocessor)
+	target_compile_options(EdoBase INTERFACE /Zc:preprocessor)
 else()
-	target_compile_options(Edo PUBLIC -Wall Wextra -Werror)
+	target_compile_options(EdoBase INTERFACE -Wall Wextra -Werror)
 endif()
 
 
 
-# ===== CMake Modules =====
-include(FetchContent)
+# ===== Options =====
+
+## Add Edo's tests to build tree.
+option(SA_EDO_BUILD_TESTS_OPT "Should build Edo's tests" OFF)
 
 
 
 # ===== Entrypoints =====
+add_subdirectory(Source)
 add_subdirectory(ThirdParty)
 
 if(SA_EDO_BUILD_TESTS_OPT)

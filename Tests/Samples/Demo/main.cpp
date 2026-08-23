@@ -1,19 +1,11 @@
 // Copyright (c) 2026 Maxime "mrouffet" ROUFFET. All Rights Reserved.
 
-//#define GLFW_INCLUDE_VULKAN 1
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
 #define EDO_DEBUG_IMPLEMENTATION 1
 #include <edo_debug.hpp>
 using namespace edo;
 
 #include <edo_maths.hpp>
 
-#define EDO_RHI_DX12 1
-//#define EDO_RHI_VK 1
-#define EDO_RHI_GLFW 1
 #define EDO_RHI_IMPLEMENTATION 1
 #include <edo_rhi.hpp>
 
