@@ -476,4 +476,16 @@ namespace edo::UT::Quaternion
 		q8 /= qmlt2;
 		EXPECT_EQ(q8, q1dq2);
 	}
+
+	TYPED_TEST(QuaternionTest, ToString)
+	{
+		// Value constructor.
+		const TypeParam q1W = TypeParam{ 893.12 };
+		const TypeParam q1X = TypeParam{ 5.23 };
+		const TypeParam q1Y = TypeParam{ 9.487 };
+		const TypeParam q1Z = TypeParam{ 63.25 };
+		const QuatT q1(q1W, q1X, q1Y, q1Z);
+
+		EDO_LOG(q1);
+	}
 }

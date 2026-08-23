@@ -18,6 +18,7 @@
 #define QuatT Quat<TypeParam>
 #define Mat3T Mat3<typename TypeParam::T, TypeParam::major>
 #define Mat4T Mat4<typename TypeParam::T, TypeParam::major>
+#define TrT Tr<TypeParam>
 
 #define EXPECT_VEC2_NEAR(_v1, _v2, eps)\
 {\
@@ -99,9 +100,31 @@
 	EXPECT_NEAR(m1V.e33, m2V.e33, eps);\
 }
 
+#define EXPECT_TR_NEAR(_tr1, _tr2, eps)\
+{\
+	auto tr1V = (_tr1);\
+	auto tr2V = (_tr2);\
+\
+	EXPECT_VEC3_NEAR(tr1V.position, tr2V.position, eps);\
+	EXPECT_QUAT_NEAR(tr1V.rotation, tr2V.rotation, eps);\
+	EXPECT_VEC3_NEAR(tr1V.scale, tr2V.scale, eps);\
+}
+
 namespace edo
 {
 	/* Must be declared in edo:: */
+	template <typename T>
+	std::ostream& operator<<(std::ostream& _os, const Rad<T>& _r)
+	{
+		return _os << std::to_string(_r.Handle()) + "_rad";
+	}
+
+	template <typename T>
+	std::ostream& operator<<(std::ostream& _os, const Deg<T>& _d)
+	{
+		return _os << std::to_string(_d.Handle()) + "_deg";
+	}
+
 	template <typename T>
 	std::ostream& operator<<(std::ostream& _os, const Vec2<T>& _v)
 	{
@@ -181,6 +204,14 @@ namespace edo
 			std::to_string(data[13]) + ", " +
 			std::to_string(data[14]) + ", " +
 			std::to_string(data[15]);
+	}
+
+	template <typename T>
+	std::ostream& operator<<(std::ostream& _os, const Tr<T>& _tr)
+	{
+		return _os << "\nPos: " << _tr.position <<
+			"\nRot: " << _tr.rotation <<
+			"\nScale: " << _tr.scale;
 	}
 }
 

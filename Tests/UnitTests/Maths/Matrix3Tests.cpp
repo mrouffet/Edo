@@ -813,4 +813,28 @@ namespace edo::UT::Matrix3
 
 		EXPECT_EQ(cm1.Data(), &cm1.e00);
 	}
+
+
+	TYPED_TEST(Matrix3Test, ToString)
+	{
+		using T = typename TypeParam::T;
+
+		T m1e00 = static_cast<T>(6.314);
+		T m1e01 = static_cast<T>(165.2);
+		T m1e02 = static_cast<T>(4236.0);
+		T m1e10 = static_cast<T>(46.25);
+		T m1e11 = static_cast<T>(77.51);
+		T m1e12 = static_cast<T>(16.25);
+		T m1e20 = static_cast<T>(653.0);
+		T m1e21 = static_cast<T>(11.21);
+		T m1e22 = static_cast<T>(15.36);
+
+		const Mat3T m1(
+			m1e00, m1e01, m1e02,
+			m1e10, m1e11, m1e12,
+			m1e20, m1e21, m1e22
+		);
+
+		EDO_LOG(m1);
+	}
 }

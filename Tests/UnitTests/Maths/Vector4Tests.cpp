@@ -207,4 +207,16 @@ namespace edo::UT::Vector4
 		v8 /= v2;
 		EXPECT_EQ(v8, v1dv2);
 	}
+
+	TYPED_TEST(Vector4Test, ToString)
+	{
+		// Value constructor.
+		const TypeParam v1X = TypeParam{ 5.23 };
+		const TypeParam v1Y = TypeParam{ 9.487 };
+		const TypeParam v1Z = TypeParam{ 10.325 };
+		const TypeParam v1W = TypeParam{ -485.2 };
+		const Vec4T v1(v1X, v1Y, v1Z, v1W);
+
+		EDO_LOG(v1);
+	}
 }
