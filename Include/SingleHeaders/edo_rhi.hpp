@@ -1079,7 +1079,7 @@ namespace edo::rhi
 	* Interface to be implemented by the user to provide
 	* windowing/surface to the render.
 	*/
-	class ISurface
+	class ISurfaceHandle
 	{
 	public:
 #if EDO_RHI_DX12
@@ -1100,14 +1100,13 @@ namespace edo::rhi
 	/**
 	* Provided base implementation for GLFW interface.
 	*/
-	class GLFWSurface : public ISurface
+	class GLFWSurfaceHandle : public ISurfaceHandle
 	{
 	protected:
 		mutable GLFWwindow* mHandle = nullptr;
 
 	public:
-		void Create(GLFWwindow* _window);
-		void Destroy();
+		GLFWSurfaceHandle(GLFWwindow* _window) noexcept;
 
 #if EDO_RHI_DX12
 		HWND GetHWND() const override final;
@@ -1119,27 +1118,25 @@ namespace edo::rhi
 	};
 
 #if EDO_RHI_IMPLEMENTATION
-	void GLFWSurface::Create(GLFWwindow* _window)
+	GLFWSurfaceHandle::GLFWSurfaceHandle(GLFWwindow* _window) noexcept :
+		mHandle{ _window }
 	{
-		EDO_ASSERT(_window, Edo.RHI.GLFW, L"Try creating Surface from null window!");
-		mHandle = _window;
-	}
-
-	void GLFWSurface::Destroy()
-	{
-		mHandle = nullptr;
 	}
 
 #if EDO_RHI_DX12
-	HWND GLFWSurface::GetHWND() const
+	HWND GLFWSurfaceHandle::GetHWND() const
 	{
+		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
+
 		return glfwGetWin32Window(mHandle);
 	}
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-	VkSurfaceKHR GLFWSurface::GetVkSurfaceKHR() const
+	VkSurfaceKHR GLFWSurfaceHandle::GetVkSurfaceKHR() const
 	{
+		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
+
 		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
 		const VkResult vrSurfaceCreated = glfwCreateWindowSurface(intl::GInstance, mHandle, nullptr, &surfaceKHR);
 		EDO_VK_ASSERET(vrSurfaceCreated, L"Create Window Surafce failed!");
@@ -1167,7 +1164,7 @@ namespace edo::rhi
 		uint32_t width = 0;
 		uint32_t height = 0;
 		uint32_t bufferingCount = 3;
-		const ISurface* surface = nullptr;
+		const ISurfaceHandle& surface;
 	};
 
 	class Swapchain
@@ -1199,8 +1196,6 @@ namespace edo::rhi
 	void Swapchain::Create(const Device& _device, const SwapchainDesc& _desc)
 	{
 #if EDO_RHI_DX12
-		EDO_ASSERT(_desc.surface, Edo.RHI.DX12, L"Valid Surface must be provided! Please implement ISurface interface.");
-
 		// Swapchain
 		{
 			const DXGI_SWAP_CHAIN_DESC1 desc{
@@ -1218,7 +1213,7 @@ namespace edo::rhi
 			};
 
 			MComPtr<IDXGISwapChain1> swapchain1;
-			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface->GetHWND(), &desc, nullptr, nullptr, &swapchain1);
+			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface.GetHWND(), &desc, nullptr, nullptr, &swapchain1);
 			EDO_DX12_ASSERT(hrSwapChainCreated, L"Create Swapchain failed!");
 
 			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.DX12, swapchain1.Get());

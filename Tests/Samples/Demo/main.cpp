@@ -62,13 +62,10 @@ int main()
 
 			device.Create();
 
-			rhi::GLFWSurface surface;
-			surface.Create(window);
-
 			rhi::SwapchainDesc scDesc{
 				.width = windowSize.x,
 				.height = windowSize.y,
-				.surface = &surface
+				.surface = rhi::GLFWSurfaceHandle(window)
 			};
 			swapchain.Create(device, scDesc);
 		}
