@@ -1164,6 +1164,7 @@ namespace edo::rhi
 		uint32_t width = 0;
 		uint32_t height = 0;
 		uint32_t bufferingCount = 3;
+		Format format = Format::RGBA8_sRGB;
 		const ISurfaceHandle& surface;
 	};
 
@@ -1201,7 +1202,7 @@ namespace edo::rhi
 			const DXGI_SWAP_CHAIN_DESC1 desc{
 				.Width = _desc.width,
 				.Height = _desc.height,
-				.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+				.Format = intl::MapFormatToDX(_desc.format == Format::RGBA8_sRGB ? Format::RGBA8_UNORM : _desc.format),
 				.Stereo = false,
 				.SampleDesc = {.Count = 1, .Quality = 0 },
 				.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
