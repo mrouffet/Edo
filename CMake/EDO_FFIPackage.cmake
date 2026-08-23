@@ -88,29 +88,34 @@ function(EDO_FFIPackage)
   #}
 
 	message("[EDO] ========== FFI Package ${PARGS_REPO_FULL_NAME} ==========")
+	message(CHECK_START "[EDO] Checks CMake Target already exists")
 
 	# Check CMAKE target already available
 	if(NOT TARGET ${PARGS_CMAKE_TARGET})
 
+		message(CHECK_FAIL "not found.")
+
 		# Try locating installed package
-		message("[EDO] Searching for package `${PARGS_PACKAGE_NAME} ${PACKAGE_VERSION}`...")
+		message(CHECK_START "[EDO] Searching for Package `${PARGS_PACKAGE_NAME} ${PACKAGE_VERSION}`")
 		find_package(${PARGS_PACKAGE_NAME} ${PACKAGE_VERSION} QUIET)
 
 		if(NOT ${${PARGS_PACKAGE_NAME}_FOUND})
 
-			message("[EDO] Package `${PARGS_PACKAGE_NAME} ${PACKAGE_VERSION}` not found.")
+			message(CHECK_FAIL "not found.")
+			message(CHECK_START "[EDO] Searching for Package-Content `${repoName}`")
 
 			if(EXISTS "${CMAKE_SOURCE_DIR}/${PARGS_SOURCE_DIR}/${repoName}/CMakeLists.txt")
 
 				# Content already cloned
-				message("[EDO] Package Content `${repoName}` already cloned: adding to build-tree.")
+				message(CHECK_PASS "already cloned: adding to build-tree.")
 
 				add_subdirectory(${CMAKE_SOURCE_DIR}/${PARGS_SOURCE_DIR}/${repoName} ${CMAKE_BINARY_DIR}/${PARGS_SOURCE_DIR}/${repoName})
 
 			else()
 
 				# Fetch
-				message("[EDO] Fetching Package Content `${repoName}`...")
+				message(CHECK_FAIL "not found.")
+				message(CHECK_START "[EDO] Fetching Package-Content `${repoName}`")
 
 				FetchContent_Declare(
 					${PARGS_CMAKE_TARGET}
@@ -121,21 +126,23 @@ function(EDO_FFIPackage)
 	
 				FetchContent_MakeAvailable(${PARGS_CMAKE_TARGET})
 	
+				message(CHECK_PASS "success: added to build-tree.")
+
 			endif()
 
 
 		else()
 
-			message("[EDO] Package `${PARGS_PACKAGE_NAME} ${PACKAGE_VERSION}` found and added to build-tree.")
+			message(CHECK_PASS "found and added to build-tree.")
 
 		endif()
 
 	else()
 
-		message("[EDO] CMake Target `${PARGS_CMAKE_TARGET}` already in build-tree. Skipping...")
+		message(CHECK_PASS "already in build-tree. Skipping...")
 
 	endif()
 
-	message("[EDO] ====================")
+	message("[EDO] ==========")
 
 endfunction(EDO_FFIPackage)
