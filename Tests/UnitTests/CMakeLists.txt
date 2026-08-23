@@ -8,7 +8,7 @@ project(Edo_UnitTests)
 
 
 # ===== GoogleTest Module =====
-EDO_FetchOrInclude(
+EDO_FFIPackage(
 	CMAKE_TARGET		googletest
 	GIT_REPOSITORY		https://github.com/google/googletest
 	GIT_TAG				v1.18.0
