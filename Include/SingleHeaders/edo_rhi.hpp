@@ -302,7 +302,7 @@ namespace edo::rhi
 
 		HANDLE mFenceEvent = nullptr;
 		MComPtr<ID3D12Fence> mFence;
-		std::vector<uint32_t> mFenceValues{ 0u };
+		std::vector<uint64_t> mFenceValues{ 0u };
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
@@ -312,6 +312,8 @@ namespace edo::rhi
 	public:
 		void Create(const Device& _device, const SwapchainDesc& _desc);
 		void Destroy(const Device& _device);
+		
+		void Present(const Device& _device);
 	};
 
 
@@ -1217,6 +1219,37 @@ namespace edo::rhi
 
 		EDO_LOG(L"Destroying Swapchain...", Verbose, Edo.RHI.DX12, mHandle.Get());
 		mHandle = nullptr;
+	}
+
+	void Swapchain::Present(const Device& _device)
+	{
+		const UINT frameIndex = mHandle->GetCurrentBackBufferIndex();
+
+		const HRESULT hrPresent = mHandle->Present(1, 0);
+		EDO_DX12_ASSERT(hrPresent, L"Swapchain Present failed");
+
+		// Move to next frame
+		{
+			// Schedule a Signal command in the queue.
+			const UINT64 fenceValue = mFenceValues[frameIndex];
+			const HRESULT hrFenceSignal = _device.GetGraphicsQueue()->Signal(mFence.Get(), fenceValue);
+			EDO_DX12_ASSERT(hrFenceSignal, L"Swapchain Fence Signal failed");
+
+			const UINT newFrameIndex = mHandle->GetCurrentBackBufferIndex();
+			const UINT64 newFenceValue = mFenceValues[newFrameIndex];
+
+			// If the next frame is not ready to be rendered yet, wait until it is ready.
+			if (mFence->GetCompletedValue() < newFenceValue)
+			{
+				const HRESULT hrSetEvent = mFence->SetEventOnCompletion(newFenceValue, mFenceEvent);
+				EDO_DX12_ASSERT(hrSetEvent, L"Fence SetEventOnCompletion failed.");
+
+				WaitForSingleObjectEx(mFenceEvent, INFINITE, FALSE);
+			}
+
+			// Set the fence value for the next frame.
+			mFenceValues[newFrameIndex] = fenceValue + 1;
+		}
 	}
 
 
