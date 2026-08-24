@@ -119,7 +119,12 @@ namespace edo::rhi
 	struct TextureDesc;
 	class Texture;
 
-	enum class Format
+
+// ##############################################################
+// #						FORMAT								#
+// ##############################################################
+
+	enum class Format : uint8_t
 	{
 		Unknown = 0,
 
@@ -155,6 +160,8 @@ namespace edo::rhi
 		D32,
 		D32S8,
 	};
+
+	bool IsDepthStencilFormat(Format _format) noexcept;
 
 
 // ##############################################################
@@ -215,10 +222,10 @@ namespace edo::rhi
 		Pipeline CreatePipeline(const CmpPipelineDesc& _desc);
 		void DestroyPipeline(Pipeline& _pip);
 
-		Buffer CreateBuffer(const BufferDesc& _desc);
+		Buffer CreateBuffer(const BufferDesc& _desc, const void* _data = nullptr);
 		void DestroyBuffer(Buffer& _buff);
 
-		Texture CreateTexture(const TextureDesc& _desc);
+		Texture CreateTexture(const TextureDesc& _desc, const void* _data = nullptr);
 		void DestroyTexture(Texture& _tex);
 	};
 
@@ -501,7 +508,7 @@ namespace edo::rhi
 
 		BufferType type = BufferType::GPU;
 
-		std::wstring name = L"unknown buffer";
+		std::wstring name;
 	};
 
 	class Buffer
@@ -523,7 +530,7 @@ namespace edo::rhi
 
 	private:
 	public:
-		void Create(const Device& _device, const BufferDesc& _desc);
+		void Create(const Device& _device, const BufferDesc& _desc, const void* _data = nullptr);
 		void Destroy(const Device& _device);
 	};
 
@@ -532,16 +539,31 @@ namespace edo::rhi
 // #						TEXTURE								#
 // ##############################################################
 
+	enum TextureUsage : uint8_t
+	{
+		None = 0,
+
+		SRV,
+
+		UAV,
+
+		RT,
+
+		All = SRV | UAV | RT
+	};
+
 	struct TextureDesc
 	{
 		uint32_t width = 0u;
 		uint32_t height = 0u;
-		
+
 		uint16_t mipLevels = 1u;
 
 		Format format = Format::Unknown;
 
-		std::wstring name = L"unknown texture";
+		uint8_t usage = TextureUsage::SRV;
+
+		std::wstring name;
 	};
 
 	class Texture
@@ -563,7 +585,7 @@ namespace edo::rhi
 
 	private:
 	public:
-		void Create(const Device& _device, const TextureDesc& _desc);
+		void Create(const Device& _device, const TextureDesc& _desc, const void* _data = nullptr);
 		void Destroy(const Device& _device);
 	};
 
@@ -574,6 +596,12 @@ namespace edo::rhi
 // ##############################################################################################################################
 // #														COMMON																#
 // ##############################################################################################################################
+
+	bool IsDepthStencilFormat(Format _format) noexcept
+	{
+		return static_cast<uint8_t>(_format) >= static_cast<uint8_t>(Format::D16) &&
+			static_cast<uint8_t>(_format) <= static_cast<uint8_t>(Format::D32S8);
+	}
 
 // ##############################################################
 // #						DEVICE								#
@@ -618,11 +646,11 @@ namespace edo::rhi
 	}
 
 
-	Buffer Device::CreateBuffer(const BufferDesc& _desc)
+	Buffer Device::CreateBuffer(const BufferDesc& _desc, const void* _data)
 	{
 		Buffer buff;
 
-		buff.Create(*this, _desc);
+		buff.Create(*this, _desc, _data);
 
 		return buff;
 	}
@@ -633,11 +661,11 @@ namespace edo::rhi
 	}
 
 
-	Texture Device::CreateTexture(const TextureDesc& _desc)
+	Texture Device::CreateTexture(const TextureDesc& _desc, const void* _data)
 	{
 		Texture tex;
 
-		tex.Create(*this, _desc);
+		tex.Create(*this, _desc, _data);
 
 		return tex;
 	}
@@ -1039,12 +1067,12 @@ namespace edo::rhi
 		{
 			// GFX
 			{
-				const D3D12_COMMAND_QUEUE_DESC desc{
+				const D3D12_COMMAND_QUEUE_DESC descDX{
 					.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
 					.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
 				};
 
-				const HRESULT hrGFXCmdQueueCreated = mHandle->CreateCommandQueue(&desc, IID_PPV_ARGS(&mGraphicsQueue));
+				const HRESULT hrGFXCmdQueueCreated = mHandle->CreateCommandQueue(&descDX, IID_PPV_ARGS(&mGraphicsQueue));
 				EDO_DX12_ASSERT(hrGFXCmdQueueCreated, L"Create Graphics Queue failed!");
 				
 				const LPCWSTR name = L"Edo_GraphicsQueue";
@@ -1055,12 +1083,12 @@ namespace edo::rhi
 
 			// CMP
 			{
-				const D3D12_COMMAND_QUEUE_DESC desc{
+				const D3D12_COMMAND_QUEUE_DESC descDX{
 					.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
 					.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
 				};
 
-				const HRESULT hrCMDCmdQueueCreated = mHandle->CreateCommandQueue(&desc, IID_PPV_ARGS(&mComputeQueue));
+				const HRESULT hrCMDCmdQueueCreated = mHandle->CreateCommandQueue(&descDX, IID_PPV_ARGS(&mComputeQueue));
 				EDO_DX12_ASSERT(hrCMDCmdQueueCreated, L"Create Compute Queue failed!");
 
 				const LPCWSTR name = L"Edo_ComputeQueue";
@@ -1140,7 +1168,7 @@ namespace edo::rhi
 	{
 		// Swapchain
 		{
-			const DXGI_SWAP_CHAIN_DESC1 desc{
+			const DXGI_SWAP_CHAIN_DESC1 descDX{
 				.Width = _desc.width,
 				.Height = _desc.height,
 				.Format = intl::MapFormatToDX(_desc.format == Format::RGBA8_sRGB ? Format::RGBA8_UNORM : _desc.format),
@@ -1155,7 +1183,7 @@ namespace edo::rhi
 			};
 
 			MComPtr<IDXGISwapChain1> swapchain1;
-			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface.GetHWND(), &desc, nullptr, nullptr, &swapchain1);
+			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface.GetHWND(), &descDX, nullptr, nullptr, &swapchain1);
 			EDO_DX12_ASSERT(hrSwapChainCreated, L"Create Swapchain failed!");
 
 			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.DX12, swapchain1.Get());
@@ -1602,15 +1630,23 @@ namespace edo::rhi
 		}
 	}
 
-	void Buffer::Create(const Device& _device, const BufferDesc& _desc)
+	void Buffer::Create(const Device& _device, const BufferDesc& _desc, const void* _data)
 	{
-		EDO_ERROR(!mHandle, Edo.RHI.DX12, "Try create on non-null Buffer");
+		std::wstring name = _desc.name;
+
+		if (_desc.name.empty())
+		{
+			static uint32_t uBuffIndex = 0;
+			name = L"Edo_UnknownBuffer_" + std::to_wstring(++uBuffIndex);
+		}
+
+		EDO_ERROR(!mHandle, Edo.RHI.DX12, (L"Try create on non-null Buffer `%1`"), name);
 
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = intl::MapBufferTypeToDX(_desc.type),
 		};
 
-		const D3D12_RESOURCE_DESC desc{
+		const D3D12_RESOURCE_DESC descDX{
 			.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
 			.Alignment = 0,
 			.Width = _desc.size,
@@ -1623,12 +1659,17 @@ namespace edo::rhi
 			.Flags = D3D12_RESOURCE_FLAG_NONE,
 		};
 
-		const HRESULT hrBufferCreated = _device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mHandle));
-		EDO_DX12_ASSERT(hrBufferCreated, L"Create Buffer Failed!");
+		const HRESULT hrBufferCreated = _device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &descDX,
+			D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mHandle));
+		EDO_DX12_ASSERT(hrBufferCreated, (L"Create Buffer `%1` Failed!", name));
 
-		mHandle->SetName(_desc.name.c_str());
+		mHandle->SetName(name.c_str());
 
-		EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
+		EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+
+
+		// TODO: upload data
+		(void)_data;
 	}
 
 	void Buffer::Destroy(const Device& _device)
@@ -1651,15 +1692,81 @@ namespace edo::rhi
 // #						TEXTURE								#
 // ##############################################################
 
-	void Texture::Create(const Device& _device, const TextureDesc& _desc)
+	namespace intl
 	{
-		EDO_ERROR(!mHandle, Edo.RHI.DX12, "Try create on non-null Texture");
+		D3D12_RESOURCE_FLAGS MapTextureFlagsDX(Format _format, uint8_t _usage)
+		{
+			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+
+			if (IsDepthStencilFormat(_format))
+			{
+				flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+			}
+
+			if (!(_usage & TextureUsage::SRV))
+			{
+				flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+			}
+
+			if (_usage & TextureUsage::UAV)
+			{
+				flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+			}
+
+			if (_usage & TextureUsage::RT)
+			{
+				flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+			}
+
+			return flags;
+		}
+
+		D3D12_RESOURCE_STATES MapInitialTextureStateDX(const TextureDesc& _desc, const void* _data)
+		{
+			if (_data || _desc.usage & TextureUsage::SRV)
+			{
+				return D3D12_RESOURCE_STATE_COPY_DEST;
+			}
+			
+			if (_desc.usage & TextureUsage::RT)
+			{
+				if (IsDepthStencilFormat(_desc.format))
+				{
+					return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+				}
+				else
+				{
+					return D3D12_RESOURCE_STATE_RENDER_TARGET;
+				}
+			}
+
+			if (_desc.usage & TextureUsage::UAV)
+			{
+				return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			}
+
+			return D3D12_RESOURCE_STATE_COMMON;
+		}
+	}
+
+	void Texture::Create(const Device& _device, const TextureDesc& _desc, const void* _data)
+	{
+		std::wstring name = _desc.name;
+		if (_desc.name.empty())
+		{
+			static uint32_t uTextIndex = 0;
+			name = L"Edo_UnknownTexture_" + std::to_wstring(++uTextIndex);
+		}
+
+		EDO_ERROR(!mHandle, Edo.RHI.DX12, (L"Try create on non-null Texture `%1`", name));
+		EDO_ERROR(!((_desc.usage & TextureUsage::RT) && _data), Edo.RHI.DX12,
+			(L"Can not provide data to a RenderTarget Texture `%1`", name));
 
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = D3D12_HEAP_TYPE_DEFAULT,
 		};
 
-		const D3D12_RESOURCE_DESC desc{
+		const D3D12_RESOURCE_DESC descDX{
 			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 			.Alignment = 0,
 			.Width = _desc.width,
@@ -1669,15 +1776,20 @@ namespace edo::rhi
 			.Format = intl::MapFormatToDX(_desc.format),
 			.SampleDesc = {.Count = 1, .Quality = 0 },
 			.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-			.Flags = D3D12_RESOURCE_FLAG_NONE,
+			.Flags = intl::MapTextureFlagsDX(_desc.format, _desc.usage),
 		};
 
-		const HRESULT hrBufferCreated = _device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&mHandle));
-		EDO_DX12_ASSERT(hrBufferCreated, L"Create Texture failed!");
+		const HRESULT hrBufferCreated = _device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &descDX,
+			intl::MapInitialTextureStateDX(_desc, _data), nullptr, IID_PPV_ARGS(&mHandle));
+		EDO_DX12_ASSERT(hrBufferCreated, (L"Create Texture `%1` failed!", name));
 
-		mHandle->SetName(_desc.name.c_str());
+		mHandle->SetName(name.c_str());
 
-		EDO_LOG(L"Create Texture success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", _desc.name, mHandle.Get()));
+		EDO_LOG(L"Create Texture success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+
+
+		// TODO: upload data
+		(void)_data;
 	}
 
 	void Texture::Destroy(const Device& _device)
