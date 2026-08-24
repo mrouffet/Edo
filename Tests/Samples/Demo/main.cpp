@@ -6,6 +6,8 @@ using namespace edo;
 
 #include <edo_maths.hpp>
 
+#define EDO_RHI_DX12 1
+//#define EDO_RHI_VK 1
 #define EDO_RHI_IMPLEMENTATION 1
 #include <edo_rhi.hpp>
 
