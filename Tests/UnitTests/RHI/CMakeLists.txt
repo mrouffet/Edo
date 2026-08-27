@@ -11,9 +11,11 @@ if(WIN32)
 	target_compile_definitions(Edo_UT_RHI_DX12 PRIVATE EDO_UT_RHI_DX12=1)
 
 	target_link_libraries(Edo_UT_RHI_DX12
-		PRIVATE EdoBase GTest::gtest_main
-		PUBLIC d3d12.lib dxgi.lib dxguid.lib
+		PRIVATE EdoBase GTest::gtest_main glfw
+		PUBLIC d3d12.lib dxgi.lib dxguid.lib dxcompiler.lib
 	)
+
+	EDO_CopyTestsResources(Edo_UT_RHI_DX12)
 
 	gtest_discover_tests(Edo_UT_RHI_DX12)
 
@@ -32,9 +34,11 @@ if(UNIX OR WIN32)
 		target_compile_definitions(Edo_UT_RHI_VK PRIVATE EDO_UT_RHI_VK=1)
 
 		target_link_libraries(Edo_UT_RHI_VK
-			PRIVATE EdoBase GTest::gtest_main
+			PRIVATE EdoBase GTest::gtest_main glfw
 			PUBLIC Vulkan::Vulkan
 		)
+
+		EDO_CopyTestsResources(Edo_UT_RHI_VK)
 
 		gtest_discover_tests(Edo_UT_RHI_VK)
 
@@ -55,8 +59,10 @@ if(false)
 	target_compile_definitions(Edo_UT_RHI_GL PRIVATE EDO_UT_RHI_GL=1)
 
 	target_link_libraries(Edo_UT_RHI_GL
-		PRIVATE EdoBase GTest::gtest_main
+		PRIVATE EdoBase GTest::gtest_main glfw
 	)
+
+	EDO_CopyTestsResources(Edo_UT_RHI_GL)
 
 	gtest_discover_tests(Edo_UT_RHI_GL)
 
@@ -71,8 +77,10 @@ if(false)
 	target_compile_definitions(Edo_UT_RHI_CPU PRIVATE EDO_UT_RHI_CPU=1)
 
 	target_link_libraries(Edo_UT_RHI_CPU
-		PRIVATE EdoBase GTest::gtest_main
+		PRIVATE EdoBase GTest::gtest_main glfw
 	)
+
+	EDO_CopyTestsResources(Edo_UT_RHI_CPU)
 
 	gtest_discover_tests(Edo_UT_RHI_CPU)
 
