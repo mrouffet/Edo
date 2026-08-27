@@ -347,15 +347,29 @@ namespace edo::rhi
 // #						SHADER								#
 // ##############################################################
 
+	struct ShaderDesc
+	{
+		std::wstring path;
+		std::wstring entry;
+		std::wstring target;
+		std::vector<std::wstring> defines;
+	};
+
 	class Shader
 	{
 #if EDO_RHI_DX12
-		MComPtr<ID3DBlob> mShader = nullptr;
+		MComPtr<ID3DBlob> mHandle = nullptr;
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-		VkShaderModule mShader = VK_NULL_HANDLE;
+		VkShaderModule mHandle = VK_NULL_HANDLE;
 #endif // EDO_RHI_VK
+
+	public:
+		void Create(const Device& _device);
+		void Destroy(const Device& _device);
+
+		static Shader CompileFromSource(const Device& _device, const ShaderDesc& _desc);
 	};
 
 
@@ -1360,6 +1374,112 @@ namespace edo::rhi
 
 		EDO_LOG(L"Destroying Command Allocator...", Verbose, Edo.RHI.DX12, mAlloc.Get());
 		mAlloc.Reset();
+	}
+
+
+// ##############################################################
+// #						SHADER								#
+// ##############################################################
+
+	namespace intl
+	{
+		// TODO: shader includer?
+	}
+
+	void Shader::Create(const Device& _device)
+	{
+		(void)_device;
+
+		EDO_LOG(L"Create Shader success", Verbose, Edo.RHI.DX12, (L"[%1]", mHandle.Get()));
+	}
+
+	void Shader::Destroy(const Device& _device)
+	{
+		(void)_device;
+
+		if (mHandle)
+		{
+			EDO_LOG(L"Destroying Shader...", Verbose, Edo.RHI.DX12, mHandle.Get());
+			mHandle.Reset();
+		}
+		else
+		{
+			EDO_LOG("Try destroy null Shader", Warning, Edo.RHI.DX12);
+		}
+	}
+
+	Shader Shader::CompileFromSource(const Device& _device, const ShaderDesc& _desc)
+	{
+		Shader result;
+
+		MComPtr<IDxcBlobEncoding> blob;
+		DxcBuffer dx;
+
+		const HRESULT hrLoadFile = intl::gShaderCompilerUtils->LoadFile(_desc.path.c_str(), nullptr, &blob);
+		if (FAILED(hrLoadFile))
+		{
+			EDO_LOG((L"Load Shader `%1` failed!", _desc.path), Error, Edo.RHI.DXC, (L"Error Code: %1", hrLoadFile));
+			return result;
+		}
+
+		dx.Ptr = blob->GetBufferPointer();
+		dx.Size = blob->GetBufferSize();
+		dx.Encoding = 0;
+
+		std::vector<LPCWSTR> cArgs
+		{
+			L"-E",
+			_desc.entry.c_str(),
+			L"-T",
+			_desc.target.c_str(),
+			L"-HV",
+			L"2021",
+			DXC_ARG_PACK_MATRIX_ROW_MAJOR,
+			DXC_ARG_ALL_RESOURCES_BOUND,
+			/* TODO: Add include path for shader includer (Warning: must work both from VS and standalone .exe) */
+			//L"-I",
+			//L"/Resources/Shaders"
+		};
+
+
+#if EDO_CONFIG_DEBUG
+		cArgs.push_back(DXC_ARG_DEBUG);
+		cArgs.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
+		cArgs.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
+#else
+		cArgs.push_back(DXC_ARG_OPTIMIZATION_LEVEL3);
+#endif
+
+		for (auto& define : _desc.defines)
+		{
+			cArgs.push_back(L"-D");
+			cArgs.push_back(define.c_str());
+		}
+
+
+		MComPtr<IDxcResult> compiled;
+		const HRESULT hrCompile = intl::gShaderCompiler->Compile(&dx, cArgs.data(), static_cast<uint32_t>(cArgs.size()), nullptr /*&includer*/, IID_PPV_ARGS(&compiled));
+
+		if (FAILED(hrCompile))
+		{
+			MComPtr<IDxcBlobUtf8> errors;
+			compiled->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
+
+			if (errors && errors->GetStringLength() > 0)
+			{
+				EDO_LOG((L"Shader `%1:%2` Compilation failed!", _desc.path, _desc.entry), Error, Edo.RHI.DXC, errors->GetStringPointer());
+			}
+
+			return result;
+		}
+
+		compiled->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&result.mHandle), nullptr);
+
+		EDO_LOG(L"Compile Shader success.", Verbose, Edo.RHI.DXC, (L"\"%1\" [%2]", _desc.path, result.mHandle.Get()));
+
+		result.Create(_device);
+
+		return result;
 	}
 
 

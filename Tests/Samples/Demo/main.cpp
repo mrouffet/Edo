@@ -25,6 +25,9 @@ rhi::Swapchain swapchain;
 
 std::array<rhi::CommandList, bufferingCount> cmdLists;
 
+rhi::Shader vertexSH;
+rhi::Shader pixelSH;
+
 int main()
 {
 	// Init
@@ -71,6 +74,9 @@ int main()
 			{
 				cmdLists[i] = device.CreateCommandList();
 			}
+
+			vertexSH = rhi::Shader::CompileFromSource(device, { L"Resources/Shaders/Passes/HelloTriangle.hlsl", L"mainVS", L"vs_6_5" });
+			pixelSH = rhi::Shader::CompileFromSource(device, { L"Resources/Shaders/Passes/HelloTriangle.hlsl", L"mainPS", L"ps_6_5" });
 		}
 	}
 
@@ -111,6 +117,9 @@ int main()
 	{
 		// Render
 		{
+			pixelSH.Destroy(device);
+			vertexSH.Destroy(device);
+
 			for (uint32_t i = 0; i < bufferingCount; ++i)
 			{
 				device.DestroyCommandList(cmdLists[i]);

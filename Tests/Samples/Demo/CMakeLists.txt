@@ -10,3 +10,12 @@ target_link_libraries(EdoDemo PUBLIC
 	EdoBase glfw
 	d3d12.lib dxgi.lib dxguid.lib dxcompiler.lib
 )
+
+
+add_custom_command(
+    TARGET EdoDemo
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/Resources
+    $<TARGET_FILE_DIR:EdoDemo>/Resources
+)
