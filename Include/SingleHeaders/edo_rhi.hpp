@@ -44,11 +44,10 @@
 
 #if EDO_RHI_DX12
 
-#include <d3d12.h>		// Requires `d3d12.lib`
-#include <DXGIDebug.h>	// Requires `dxguid.lib`
-#include <dxgi1_6.h>	// Requires `dxgi.lib`
-
-//#include <dxc/dxcapi.h>
+#include <d3d12.h>		// `d3d12.lib`
+#include <DXGIDebug.h>	// `dxguid.lib`
+#include <dxgi1_6.h>	// `dxgi.lib`
+#include <dxcapi.h>		// `dxcompiler.lib`
 
 #define EDO_DX12_ASSERT(_hres, _msg)\
 	EDO_ASSERT(SUCCEEDED(_hres), Edo.RHI.DX12, (edo::StringFormat(_msg) + edo::StringFormat(L"\tError Code: %1", _hres)));
@@ -841,88 +840,127 @@ namespace edo::rhi
 	namespace intl
 	{
 		static MComPtr<IDXGIFactory6> gFactory = nullptr;
+
+		static MComPtr<IDxcUtils> gShaderCompilerUtils = nullptr;
+		static MComPtr<IDxcCompiler3> gShaderCompiler = nullptr;
 	}
 
 	void Initialize()
 	{
-		EDO_ERROR(!intl::gFactory, Edo.RHI.DX12, L"Try initializing already initialized API!");
-
-		UINT dxgiFactoryFlags = 0;
-
-	#if EDO_CONFIG_DEBUG
-		// Validation Layers
+		// Instance
 		{
-			// Debug controller
-			{
-				MComPtr<ID3D12Debug1> debugController = nullptr;
 
-				const HRESULT hrDebugInterface = D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
-				if (SUCCEEDED(hrDebugInterface))
+			EDO_ERROR(!intl::gFactory, Edo.RHI.DX12, L"Try initializing already initialized API!");
+
+			UINT dxgiFactoryFlags = 0;
+
+		#if EDO_CONFIG_DEBUG
+			// Validation Layers
+			{
+				// Debug controller
 				{
-					debugController->EnableDebugLayer();
-					debugController->SetEnableGPUBasedValidation(true);
+					MComPtr<ID3D12Debug1> debugController = nullptr;
+
+					const HRESULT hrDebugInterface = D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+					if (SUCCEEDED(hrDebugInterface))
+					{
+						debugController->EnableDebugLayer();
+						debugController->SetEnableGPUBasedValidation(true);
+					}
+					else
+					{
+						EDO_LOG(L"Validation layer DebugController initialization failed.", Error, Edo.RHI.DX12,
+							(L"Error Code: %1", hrDebugInterface));
+					}
 				}
-				else
+
+				// Report live objects
 				{
-					EDO_LOG(L"Validation layer DebugController initialization failed.", Error, Edo.RHI.DX12,
-						(L"Error Code: %1", hrDebugInterface));
+					MComPtr<IDXGIInfoQueue> dxgiInfoQueue = nullptr;
+
+					const HRESULT hrDebugInterface = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue));
+					if (SUCCEEDED(hrDebugInterface))
+					{
+						/**
+						* Enable this to trigger breakpoints on ReportLiveObjects() and have errors in VisualStudio's output window.
+						* WARNING: ReportLiveObjects() will ONLY output in VisualStudio's output window and not exe CONSOLE.
+						*/
+						dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+						dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+						dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true);
+					}
+					else
+					{
+						EDO_LOG(L"Validation layer DebugInfoQueue uninitialized failed.", Error, Edo.RHI.DX12,
+							(L"Error Code: %1", hrDebugInterface));
+					}
 				}
 			}
 
-			// Report live objects
-			{
-				MComPtr<IDXGIInfoQueue> dxgiInfoQueue = nullptr;
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+		#endif // EDO_CONFIG_DEBUG
 
-				const HRESULT hrDebugInterface = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue));
-				if (SUCCEEDED(hrDebugInterface))
-				{
-					/**
-					* Enable this to trigger breakpoints on ReportLiveObjects() and have errors in VisualStudio's output window.
-					* WARNING: ReportLiveObjects() will ONLY output in VisualStudio's output window and not exe CONSOLE.
-					*/
-					dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
-					dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
-					dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true);
-				}
-				else
-				{
-					EDO_LOG(L"Validation layer DebugInfoQueue uninitialized failed.", Error, Edo.RHI.DX12,
-						(L"Error Code: %1", hrDebugInterface));
-				}
-			}
+			const HRESULT hrFactoryCreated = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&intl::gFactory));
+			EDO_DX12_ASSERT(hrFactoryCreated, L"Create Factory failed!");
+
+			EDO_LOG(L"Create Factory success.", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
 		}
 
-		// Enable additional debug layers.
-		dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-	#endif // EDO_CONFIG_DEBUG
 
-		const HRESULT hrFactoryCreated = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&intl::gFactory));
-		EDO_DX12_ASSERT(hrFactoryCreated, L"Create Factory failed!");
-		
-		EDO_LOG(L"Create Factory success.", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
+		// Shader Compiler
+		{
+			EDO_ERROR(!intl::gShaderCompilerUtils, Edo.RHI.DX12, L"Try initializing already initialized DXC Shader Compiler!");
+
+			const HRESULT hCreateUtils = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&intl::gShaderCompilerUtils));
+			EDO_DX12_ASSERT(hCreateUtils, L"Create DXC Shader Compiler Utils failed!");
+
+			EDO_LOG(L"Create DXC Shader Compiler Utils success.", Verbose, Edo.RHI.DX12, intl::gShaderCompilerUtils.Get());
+
+
+			EDO_ERROR(!intl::gShaderCompiler, Edo.RHI.DX12, L"Try initializing already initialized DXC Shader Compiler Instance!");
+
+			const HRESULT hCreateInstance = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&intl::gShaderCompiler));
+			EDO_DX12_ASSERT(hCreateInstance, L"Create DXC Shader Compiler Instance failed!");
+
+			EDO_LOG(L"Create DXC Shader Compiler success.", Verbose, Edo.RHI.DX12, intl::gShaderCompiler.Get());
+		}
 	}
 
 	void Shutdown()
 	{
-		EDO_ERROR(intl::gFactory, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
-
-		EDO_LOG(L"Destroying Factory...", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
-		intl::gFactory = nullptr;
-
-	#if EDO_CONFIG_DEBUG
-		// Report live objects
-		MComPtr<IDXGIDebug1> dxgiDebug = nullptr;
-
-		const HRESULT hrDebugInterface = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug));
-		if (SUCCEEDED(hrDebugInterface))
+		// Shader Compiler
 		{
-			dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			EDO_LOG(L"Destroying Shader Compiler...", Verbose, Edo.RHI.DX12, intl::gShaderCompiler.Get());
+			intl::gShaderCompiler.Reset();
+
+			EDO_LOG(L"Destroying Shader Compiler Utils...", Verbose, Edo.RHI.DX12, intl::gShaderCompilerUtils.Get());
+			intl::gShaderCompilerUtils.Reset();
 		}
-		else
+
+
+		// Instance
 		{
-			EDO_LOG(L"Validation layer uninitialized failed.", Error, Edo.RHI.DX12);
+			EDO_ERROR(intl::gFactory, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
+
+			EDO_LOG(L"Destroying Factory...", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
+			intl::gFactory.Reset();
+
+		#if EDO_CONFIG_DEBUG
+			// Report live objects
+			MComPtr<IDXGIDebug1> dxgiDebug = nullptr;
+
+			const HRESULT hrDebugInterface = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug));
+			if (SUCCEEDED(hrDebugInterface))
+			{
+				dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			}
+			else
+			{
+				EDO_LOG(L"Validation layer uninitialized failed.", Error, Edo.RHI.DX12);
+			}
+		#endif // EDO_CONFIG_DEBUG
 		}
-	#endif // EDO_CONFIG_DEBUG
 	}
 
 
@@ -1108,13 +1146,13 @@ namespace edo::rhi
 			// GFX
 			{
 				EDO_LOG(L"Destroying Graphics Queue...", Verbose, Edo.RHI.DX12, mGraphicsQueue.Get());
-				mGraphicsQueue = nullptr;
+				mGraphicsQueue.Reset();
 			}
 
 			// CMP
 			{
 				EDO_LOG(L"Destroying Compute Queue...", Verbose, Edo.RHI.DX12, mComputeQueue.Get());
-				mComputeQueue = nullptr;
+				mComputeQueue.Reset();
 			}
 		}
 
@@ -1139,8 +1177,8 @@ namespace edo::rhi
 
 		EDO_LOG(L"Destroying Device...", Verbose, Edo.RHI.DX12, mHandle.Get());
 
-		mHandle = nullptr;
-		mAdapter = nullptr;
+		mHandle.Reset();
+		mAdapter.Reset();
 	}
 
 
@@ -1236,17 +1274,17 @@ namespace edo::rhi
 			mFenceEvent = nullptr;
 
 			EDO_LOG(L"Destroying Swapchain Fence...", Verbose, Edo.RHI.DX12, mFence.Get());
-			mFence = nullptr;
+			mFence.Reset();
 		}
 
 		for (size_t i = 0; i < mBackBuffers.size(); ++i)
 		{
 			EDO_LOG((L"Destroying Swapchain image [%1]...", i), Verbose, Edo.RHI.DX12, mBackBuffers[i].Get());
-			mBackBuffers[i] = nullptr;
+			mBackBuffers[i].Reset();
 		}
 
 		EDO_LOG(L"Destroying Swapchain...", Verbose, Edo.RHI.DX12, mHandle.Get());
-		mHandle = nullptr;
+		mHandle.Reset();
 	}
 
 	void Swapchain::Present(const Device& _device)
@@ -1318,10 +1356,10 @@ namespace edo::rhi
 		(void)_device;
 
 		EDO_LOG(L"Destroying Command List...", Verbose, Edo.RHI.DX12, mHandle.Get());
-		mHandle = nullptr;
+		mHandle.Reset();
 
 		EDO_LOG(L"Destroying Command Allocator...", Verbose, Edo.RHI.DX12, mAlloc.Get());
-		mAlloc = nullptr;
+		mAlloc.Reset();
 	}
 
 
@@ -1596,7 +1634,7 @@ namespace edo::rhi
 		{
 			EDO_LOG(L"Destroying PipelineState...", Verbose, Edo.RHI.DX12, mHandle.Get());
 
-			mHandle = nullptr;
+			mHandle.Reset();
 		}
 		else
 		{
@@ -1679,7 +1717,7 @@ namespace edo::rhi
 		if (mHandle)
 		{
 			EDO_LOG(L"Destroying Buffer...", Verbose, Edo.RHI.DX12, mHandle.Get());
-			mHandle = nullptr;
+			mHandle.Reset();
 		}
 		else
 		{
@@ -1799,7 +1837,7 @@ namespace edo::rhi
 		if (mHandle)
 		{
 			EDO_LOG(L"Destroying Texture...", Verbose, Edo.RHI.DX12, mHandle.Get());
-			mHandle = nullptr;
+			mHandle.Reset();
 		}
 		else
 		{

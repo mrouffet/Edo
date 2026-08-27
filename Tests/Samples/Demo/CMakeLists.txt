@@ -8,5 +8,5 @@ add_executable(EdoDemo ${EDO_DEMO_SAMPLE_SOURCES})
 
 target_link_libraries(EdoDemo PUBLIC
 	EdoBase glfw
-	d3d12.lib dxgi.lib dxguid.lib
+	d3d12.lib dxgi.lib dxguid.lib dxcompiler.lib
 )
