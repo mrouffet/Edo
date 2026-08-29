@@ -41,7 +41,7 @@ namespace edo::UT::RHI
 
 	void RenderTestBase::InitRenderBase()
 	{
-		edo::rhi::Initialize();
+		rhi::Initialize();
 
 		device.Create();
 

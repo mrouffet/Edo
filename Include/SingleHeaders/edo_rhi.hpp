@@ -244,7 +244,7 @@ namespace edo::rhi
 		/**
 		* Retreive Windows native HWND from Window API
 		*/
-		virtual HWND GetHWND() const = 0;
+		virtual HWND GetHWND() = 0;
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
@@ -252,7 +252,7 @@ namespace edo::rhi
 		* \brief Create a `VkSurfaceKHR` from window API surface.
 		* /!\ \b Ownership of the created VkSurfaceKHR belongs to the \b Swapchain, not the SurfaceHandle /!\ 
 		*/
-		virtual VkSurfaceKHR CreateVkSurfaceKHR() const = 0;
+		virtual VkSurfaceKHR CreateVkSurfaceKHR() = 0;
 #endif // EDO_RHI_VK
 	};
 
@@ -277,11 +277,11 @@ namespace edo::rhi
 		}
 
 #if EDO_RHI_DX12
-		HWND GetHWND() const override final;
+		HWND GetHWND() override final;
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
-		VkSurfaceKHR CreateVkSurfaceKHR() const override final;
+		VkSurfaceKHR CreateVkSurfaceKHR() override final;
 #endif // EDO_RHI_VK
 	};
 #endif // EDO_RHI_GLFW
@@ -297,7 +297,7 @@ namespace edo::rhi
 		uint32_t height = 0;
 		uint32_t bufferingCount = 3;
 		Format format = Format::RGBA8_sRGB;
-		const ISurfaceHandle& surface;
+		ISurfaceHandle&& surface;
 	};
 
 	class Swapchain
@@ -1204,7 +1204,7 @@ namespace edo::rhi
 // #			GLFW				#
 // ##################################
 
-	HWND GLFWSurfaceHandle::GetHWND() const
+	HWND GLFWSurfaceHandle::GetHWND()
 	{
 		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
 
@@ -2364,7 +2364,7 @@ namespace edo::rhi
 // #			GLFW				#
 // ##################################
 
-	VkSurfaceKHR GLFWSurfaceHandle::CreateVkSurfaceKHR() const
+	VkSurfaceKHR GLFWSurfaceHandle::CreateVkSurfaceKHR()
 	{
 		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
 
