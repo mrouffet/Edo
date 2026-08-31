@@ -7,15 +7,10 @@ file(GLOB_RECURSE EDO_DEMO_SAMPLE_SOURCES "*.cpp")
 add_executable(EdoDemo ${EDO_DEMO_SAMPLE_SOURCES})
 
 target_link_libraries(EdoDemo PUBLIC
-	EdoBase glfw
+	EdoBase
 	d3d12.lib dxgi.lib dxguid.lib dxcompiler.lib
 )
 
+EDO_LinkTestWindowAPI(EdoDemo)
 
-add_custom_command(
-    TARGET EdoDemo
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/Resources
-    $<TARGET_FILE_DIR:EdoDemo>/Resources
-)
+EDO_CopyTestsResources(EdoDemo)

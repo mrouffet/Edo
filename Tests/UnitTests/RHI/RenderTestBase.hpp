@@ -7,11 +7,7 @@
 
 #include "CommonTest.hpp"
 
-#include <edo_debug.hpp>
-#include <edo_maths.hpp>
-using namespace edo;
-
-#include <edo_rhi.hpp>
+#include "WindowTestHelper.hpp"
 
 namespace edo::UT::RHI
 {
@@ -22,15 +18,14 @@ namespace edo::UT::RHI
 	class RenderTestBase
 	{
 	protected:
-		GLFWwindow* window = nullptr;
-
 		rhi::Device device;
 		rhi::Swapchain swapchain;
 
 		std::array<rhi::CommandList, bufferingCount> cmdLists;
 	public:
+		WindowHelper winHelper;
+
 		void InitLogger();
-		void InitGLFW();
 		void InitRenderBase();
 		virtual void InitRender_Impl() = 0;
 
@@ -39,7 +34,6 @@ namespace edo::UT::RHI
 
 		virtual void ShutdownRender_Impl() = 0;
 		void ShutdownRenderBase();
-		void ShutdownGLFW();
 	};
 }
 
@@ -59,12 +53,12 @@ namespace edo::UT::RHI
 #define EDO_RENDER_TEST(_class, _name)\
 	_class rtest;\
 	TEST(RHITestSuite(_name), Init_Logger) { rtest.InitLogger(); }\
-	TEST(RHITestSuite(_name), Init_GLFW) { rtest.InitGLFW(); }\
+	TEST(RHITestSuite(_name), EDO_RHI_UT_Init_Window_Name) { rtest.winHelper.InitWindow(windowSize); }\
 	TEST(RHITestSuite(_name), Init_Render_Base) { rtest.InitRenderBase(); }\
 	TEST(RHITestSuite(_name), Init_Render_Impl) { rtest.InitRender_Impl(); }\
 	TEST(RHITestSuite(_name), Loop) { rtest.Loop(); }\
 	TEST(RHITestSuite(_name), Shutdown_Render_Impl) { rtest.ShutdownRender_Impl(); }\
 	TEST(RHITestSuite(_name), Shutdown_Render_Base) { rtest.ShutdownRenderBase(); }\
-	TEST(RHITestSuite(_name), Shutdown_GLFW) { rtest.ShutdownGLFW(); }
+	TEST(RHITestSuite(_name), EDO_RHI_UT_Shutdown_Window_Name) { rtest.winHelper.ShutdownWindow(); }
 
 #endif // EDO_RHI_RENDER_TEST_BASE_GUARD

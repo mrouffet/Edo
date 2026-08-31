@@ -64,6 +64,14 @@ namespace edo::rhi
 	#if __has_include(<GLFW/glfw3.h>) && __has_include(<GLFW/glfw3native.h>)
 		#define EDO_RHI_GLFW 1
 
+		#if (defined(_glfw3_h_) || defined(_glfw3_native_h_)) && !defined(GLFW_EXPOSE_NATIVE_WIN32)
+			#error "<edo_rhi.hpp> must be included after `glfw3.h` and `glfw3native.h` with `GLFW_EXPOSE_NATIVE_WIN32` defined. You can either:\
+			1. Change the include order.\
+			2. Remove the glfw includes and let <edo_rhi.hpp> handling them.\
+			3. Force define `EDO_RHI_GLFW` to `1` before including <edo_rhi.hpp> to force-enable GLFW implementation without the internal includes.\
+			4. Force define `EDO_RHI_GLFW` to `0` before including <edo_rhi.hpp> to force-disable the use of GLFW in <edo_rhi.hpp>"
+		#endif
+
 		#define GLFW_EXPOSE_NATIVE_WIN32
 		#include <GLFW/glfw3.h>
 		#include <GLFW/glfw3native.h>
@@ -85,6 +93,14 @@ namespace edo::rhi
 	#if __has_include(<GLFW/glfw3.h>) && __has_include(<GLFW/glfw3native.h>)
 		#define EDO_RHI_GLFW 1
 
+		#if defined(_glfw3_h_) && !defined(GLFW_INCLUDE_VULKAN)
+			#error "<edo_rhi.hpp> must be included after `glfw3.h` with `GLFW_INCLUDE_VULKAN` defined. You can either:\
+			1. Change the include order.\
+			2. Remove the glfw includes and let <edo_rhi.hpp> handling them.\
+			3. Force define `EDO_RHI_GLFW` to `1` before including <edo_rhi.hpp> to force-enable GLFW implementation without the internal includes.\
+			4. Force define `EDO_RHI_GLFW` to `0` before including <edo_rhi.hpp> to force-disable the use of GLFW in <edo_rhi.hpp>"
+		#endif
+
 		#define GLFW_INCLUDE_VULKAN 1
 		#include <GLFW/glfw3.h>
 	#else
@@ -93,6 +109,24 @@ namespace edo::rhi
 #endif // GLFW
 
 #endif
+
+#if !defined(EDO_RHI_SFML)
+	#if __has_include(<SFML/Window.hpp>)
+		#define EDO_RHI_SFML 1
+		#include <SFML/Window.hpp>
+	#else
+		#define EDO_RHI_SFML 0
+	#endif
+#endif // SFML
+
+#if !defined(EDO_RHI_SDL3)
+	#if __has_include(<SDL3/SDL.h>)
+		#define EDO_RHI_SDL3 1
+		#include <SDL3/SDL.h>
+	#else
+		#define EDO_RHI_SDL3 0
+	#endif
+#endif // SDL
 
 namespace edo::rhi
 {
@@ -263,15 +297,75 @@ namespace edo::rhi
 
 #if EDO_RHI_GLFW
 	/**
-	* Provided base implementation for GLFW interface.
+	* Provided base implementation for GLFW Window interface.
 	*/
 	class GLFWSurfaceHandle : public ISurfaceHandle
 	{
 	protected:
-		mutable GLFWwindow* mHandle = nullptr;
+		GLFWwindow* mHandle = nullptr;
 
 	public:
 		inline GLFWSurfaceHandle(GLFWwindow* _window) noexcept :
+			mHandle{ _window }
+		{
+		}
+
+#if EDO_RHI_DX12
+		HWND GetHWND() override final;
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		VkSurfaceKHR CreateVkSurfaceKHR() override final;
+#endif // EDO_RHI_VK
+	};
+#endif // EDO_RHI_GLFW
+
+
+// ##################################
+// #			SFML				#
+// ##################################
+
+#if EDO_RHI_SFML
+	/**
+	* Provided base implementation for SFML Window interface.
+	*/
+	class SFMLSurfaceHandle : public ISurfaceHandle
+	{
+	protected:
+		const sf::Window& mHandle;
+
+	public:
+		inline SFMLSurfaceHandle(const sf::Window& _window) noexcept :
+			mHandle{ _window }
+		{
+		}
+
+#if EDO_RHI_DX12
+		HWND GetHWND() override final;
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+		VkSurfaceKHR CreateVkSurfaceKHR() override final;
+#endif // EDO_RHI_VK
+	};
+#endif // EDO_RHI_SFML
+
+
+// ##################################
+// #			SDL3				#
+// ##################################
+
+#if EDO_RHI_SDL3
+	/**
+	* Provided base implementation for SDL3 Window interface.
+	*/
+	class SDL3SurfaceHandle : public ISurfaceHandle
+	{
+	protected:
+		SDL_Window* mHandle = nullptr;
+
+	public:
+		inline SDL3SurfaceHandle(SDL_Window* _window) noexcept :
 			mHandle{ _window }
 		{
 		}
@@ -1204,12 +1298,39 @@ namespace edo::rhi
 // #			GLFW				#
 // ##################################
 
+#if EDO_RHI_GLFW
 	HWND GLFWSurfaceHandle::GetHWND()
 	{
 		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
 
 		return glfwGetWin32Window(mHandle);
 	}
+#endif // EDO_RHI_GLFW
+
+// ##################################
+// #			SFML				#
+// ##################################
+
+#if EDO_RHI_SFML
+	HWND SFMLSurfaceHandle::GetHWND()
+	{
+		return mHandle.getNativeHandle();
+	}
+#endif // EDO_RHI_SFML
+
+// ##################################
+// #			SDL3				#
+// ##################################
+
+#if EDO_RHI_SDL3
+	HWND SDL3SurfaceHandle::GetHWND()
+	{
+		SDL_PropertiesID props = SDL_GetWindowProperties(mHandle);
+		HWND hwnd = (HWND)SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+
+		return hwnd;
+	}
+#endif // EDO_RHI_SDL3
 
 
 // ##############################################################
@@ -2364,18 +2485,52 @@ namespace edo::rhi
 // #			GLFW				#
 // ##################################
 
+#if EDO_RHI_GLFW
 	VkSurfaceKHR GLFWSurfaceHandle::CreateVkSurfaceKHR()
 	{
 		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
 
 		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
-		const VkResult vrSurfaceCreated = glfwCreateWindowSurface(intl::GInstance, mHandle, nullptr, &surfaceKHR);
-		EDO_VK_ASSERET(vrSurfaceCreated, L"Create Window Surafce failed!");
+		const VkResult vrSurfaceCreated = glfwCreateWindowSurface(intl::gInstance, mHandle, nullptr, &surfaceKHR);
+		EDO_VK_ASSERT(vrSurfaceCreated, L"Create Window Surafce failed!");
 			
 		SA_LOG("Create Window Surface success.", Verbose, Edo.RHI.GLFW, surfaceKHR);
 
 		return surfaceKHR;
 	}
+#endif // EDO_RHI_GLFW
+
+// ##################################
+// #			SFML				#
+// ##################################
+
+#if EDO_RHI_SFML
+	VkSurfaceKHR SFMLSurfaceHandle::CreateVkSurfaceKHR()
+	{
+		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
+
+		const bool res = mHandle.createVulkanSurface(intl::gInstance, surfaceKHR);
+		EDO_ASSERT(res, Edo.RHI.SFML, L"Create Window Surface failed!");
+
+		return surfaceKHR;
+	}
+#endif // EDO_RHI_SFML
+
+// ##################################
+// #			SDL3				#
+// ##################################
+
+#if EDO_RHI_SDL3
+	VkSurfaceKHR SDL3SurfaceHandle::CreateVkSurfaceKHR()
+	{
+		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
+
+		const bool res = SDL_Vulkan_CreateSurface(mHandle, intl::gInstance, nullptr, &surfaceKHR);
+		EDO_ASSERT(res, Edo.RHI.SDL3, L"Create Window Surface failed!");
+
+		return surfaceKHR;
+	}
+#endif // EDO_RHI_SDL3
 
 
 // ##############################################################

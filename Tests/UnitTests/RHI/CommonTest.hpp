@@ -7,6 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include <edo_debug.hpp>
+#include <edo_maths.hpp>
+using namespace edo;
+
 #if EDO_UT_RHI_DX12
 	#define EDO_RHI_DX12 1
 #endif
@@ -19,5 +23,11 @@
 #if EDO_UT_RHI_CPU
 	#define EDO_RHI_CPU 1
 #endif
+
+//#define EDO_RHI_GLFW 0
+//#define EDO_RHI_SFML 0
+//#define EDO_RHI_SDL3 0
+
+#include <edo_rhi.hpp>
 
 #endif // EDO_RHI_COMMON_TEST_GUARD

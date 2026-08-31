@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Maxime "mrouffet" ROUFFET. All Rights Reserved.
 
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 4.0)
 
 # Edo's CMake tools.
 add_subdirectory(CMake)
@@ -53,7 +53,7 @@ endif()
 # ===== Options =====
 
 ## Add Edo's tests to build tree.
-option(SA_EDO_BUILD_TESTS_OPT "Should build Edo's tests" OFF)
+option(EDO_BUILD_TESTS_OPT "Should build Edo's tests" OFF)
 
 
 
@@ -61,7 +61,7 @@ option(SA_EDO_BUILD_TESTS_OPT "Should build Edo's tests" OFF)
 add_subdirectory(Source)
 add_subdirectory(ThirdParty)
 
-if(SA_EDO_BUILD_TESTS_OPT)
+if(EDO_BUILD_TESTS_OPT)
 
 	# Enable testing for this directory and below.
 	enable_testing()

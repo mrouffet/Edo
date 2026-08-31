@@ -17,6 +17,9 @@ Makefile
 # CMake cloned repo
 googletest/
 googlebenchmark/
+#glfw/
+SFML/
+SDL/
 
 # Build and Temp files.
 [Bb]uild/
