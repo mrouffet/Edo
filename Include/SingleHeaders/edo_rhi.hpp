@@ -859,7 +859,7 @@ namespace edo::rhi
 
 			default:
 			{
-				EDO_LOG((L"Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.DX12);
+				EDO_LOG((L"Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.DX12.Format);
 				return DXGI_FORMAT_UNKNOWN;
 			}
 			}
@@ -934,7 +934,7 @@ namespace edo::rhi
 
 			default:
 			{
-				EDO_LOG((L"DX12 Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.DX12);
+				EDO_LOG((L"DX12 Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.DX12.Format);
 				return Format::Unknown;
 			}
 			}
@@ -958,7 +958,7 @@ namespace edo::rhi
 		// Instance
 		{
 
-			EDO_ERROR(!intl::gFactory, Edo.RHI.DX12, L"Try initializing already initialized API!");
+			EDO_ERROR(!intl::gFactory, Edo.RHI.DX12.Instance, L"Try initializing already initialized API!");
 
 			UINT dxgiFactoryFlags = 0;
 
@@ -977,7 +977,7 @@ namespace edo::rhi
 					}
 					else
 					{
-						EDO_LOG(L"Validation layer DebugController initialization failed.", Error, Edo.RHI.DX12,
+						EDO_LOG(L"Validation layer DebugController initialization failed.", Error, Edo.RHI.DX12.Instance,
 							(L"Error Code: %1", hrDebugInterface));
 					}
 				}
@@ -999,7 +999,7 @@ namespace edo::rhi
 					}
 					else
 					{
-						EDO_LOG(L"Validation layer DebugInfoQueue uninitialized failed.", Error, Edo.RHI.DX12,
+						EDO_LOG(L"Validation layer DebugInfoQueue uninitialized failed.", Error, Edo.RHI.DX12.Instance,
 							(L"Error Code: %1", hrDebugInterface));
 					}
 				}
@@ -1012,26 +1012,26 @@ namespace edo::rhi
 			const HRESULT hrFactoryCreated = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&intl::gFactory));
 			EDO_DX12_ASSERT(hrFactoryCreated, L"Create Factory failed!");
 
-			EDO_LOG(L"Create Factory success.", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
+			EDO_LOG(L"Create Factory success.", Verbose, Edo.RHI.DX12.Instance, intl::gFactory.Get());
 		}
 
 
 		// Shader Compiler
 		{
-			EDO_ERROR(!intl::gShaderCompilerUtils, Edo.RHI.DX12, L"Try initializing already initialized DXC Shader Compiler!");
+			EDO_ERROR(!intl::gShaderCompilerUtils, Edo.RHI.DX12.Instance, L"Try initializing already initialized DXC Shader Compiler!");
 
 			const HRESULT hCreateUtils = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&intl::gShaderCompilerUtils));
 			EDO_DX12_ASSERT(hCreateUtils, L"Create DXC Shader Compiler Utils failed!");
 
-			EDO_LOG(L"Create DXC Shader Compiler Utils success.", Verbose, Edo.RHI.DX12, intl::gShaderCompilerUtils.Get());
+			EDO_LOG(L"Create DXC Shader Compiler Utils success.", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompilerUtils.Get());
 
 
-			EDO_ERROR(!intl::gShaderCompiler, Edo.RHI.DX12, L"Try initializing already initialized DXC Shader Compiler Instance!");
+			EDO_ERROR(!intl::gShaderCompiler, Edo.RHI.DX12.Instance, L"Try initializing already initialized DXC Shader Compiler Instance!");
 
 			const HRESULT hCreateInstance = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&intl::gShaderCompiler));
 			EDO_DX12_ASSERT(hCreateInstance, L"Create DXC Shader Compiler Instance failed!");
 
-			EDO_LOG(L"Create DXC Shader Compiler success.", Verbose, Edo.RHI.DX12, intl::gShaderCompiler.Get());
+			EDO_LOG(L"Create DXC Shader Compiler success.", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompiler.Get());
 		}
 	}
 
@@ -1039,19 +1039,19 @@ namespace edo::rhi
 	{
 		// Shader Compiler
 		{
-			EDO_LOG(L"Destroying Shader Compiler...", Verbose, Edo.RHI.DX12, intl::gShaderCompiler.Get());
+			EDO_LOG(L"Destroying Shader Compiler...", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompiler.Get());
 			intl::gShaderCompiler.Reset();
 
-			EDO_LOG(L"Destroying Shader Compiler Utils...", Verbose, Edo.RHI.DX12, intl::gShaderCompilerUtils.Get());
+			EDO_LOG(L"Destroying Shader Compiler Utils...", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompilerUtils.Get());
 			intl::gShaderCompilerUtils.Reset();
 		}
 
 
 		// Instance
 		{
-			EDO_ERROR(intl::gFactory, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
+			EDO_ERROR(intl::gFactory, Edo.RHI.DX12.Instance, L"Try shutting down already null API!", return;);
 
-			EDO_LOG(L"Destroying Factory...", Verbose, Edo.RHI.DX12, intl::gFactory.Get());
+			EDO_LOG(L"Destroying Factory...", Verbose, Edo.RHI.DX12.Instance, intl::gFactory.Get());
 			intl::gFactory.Reset();
 
 		#if EDO_CONFIG_DEBUG
@@ -1065,7 +1065,7 @@ namespace edo::rhi
 			}
 			else
 			{
-				EDO_LOG(L"Validation layer uninitialized failed.", Error, Edo.RHI.DX12);
+				EDO_LOG(L"Validation layer uninitialized failed.", Error, Edo.RHI.DX12.Instance);
 			}
 		#endif // EDO_CONFIG_DEBUG
 		}
@@ -1170,9 +1170,9 @@ namespace edo::rhi
 	{
 		// Device
 		{
-			EDO_ASSERT(intl::gFactory, Edo.RHI.DX12, L"API not initialized. Call edo::rhi::Initialize() first!");
-			EDO_ERROR(!mAdapter, Edo.RHI.DX12, L"Try create an already created device!");
-			EDO_ERROR(!mHandle, Edo.RHI.DX12, L"Try create an already created device!");
+			EDO_ASSERT(intl::gFactory, Edo.RHI.DX12.Device, L"API not initialized. Call edo::rhi::Initialize() first!");
+			EDO_ERROR(!mAdapter, Edo.RHI.DX12.Device, L"Try create an already created device!");
+			EDO_ERROR(!mHandle, Edo.RHI.DX12.Device, L"Try create an already created device!");
 
 			const HRESULT hrQueryGPU = intl::gFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&mAdapter));
 			EDO_DX12_ASSERT(hrQueryGPU, L"Adapter not found!");
@@ -1183,7 +1183,7 @@ namespace edo::rhi
 			const LPCWSTR name = L"Edo_Device";
 			mHandle->SetName(name);
 
-			EDO_LOG(L"Create Device success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+			EDO_LOG(L"Create Device success.", Verbose, Edo.RHI.DX12.Device, (L"\"%1\" [%2]", name, mHandle.Get()));
 		}
 
 	#if EDO_CONFIG_DEBUG
@@ -1204,7 +1204,7 @@ namespace edo::rhi
 			else
 			{
 				EDO_LOG(L"Device query info queue to enable validation layers failed.",
-					Error, Edo.RHI.DX12, (L"Error Code: %1", hrQueryInfoQueue));
+					Error, Edo.RHI.DX12.Device, (L"Error Code: %1", hrQueryInfoQueue));
 			}
 		}
 	#endif
@@ -1224,7 +1224,7 @@ namespace edo::rhi
 				const LPCWSTR name = L"Edo_GraphicsQueue";
 				mGraphicsQueue->SetName(name);
 
-				EDO_LOG(L"Create Graphics Queue success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mGraphicsQueue.Get()));
+				EDO_LOG(L"Create Graphics Queue success.", Verbose, Edo.RHI.DX12.Device, (L"\"%1\" [%2]", name, mGraphicsQueue.Get()));
 			}
 
 			// CMP
@@ -1240,26 +1240,26 @@ namespace edo::rhi
 				const LPCWSTR name = L"Edo_ComputeQueue";
 				mComputeQueue->SetName(name);
 
-				EDO_LOG(L"Create Compute Queue success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mComputeQueue.Get()));
+				EDO_LOG(L"Create Compute Queue success.", Verbose, Edo.RHI.DX12.Device, (L"\"%1\" [%2]", name, mComputeQueue.Get()));
 			}
 		}
 	}
 
 	void Device::Destroy()
 	{
-		EDO_ERROR(mHandle && mAdapter, Edo.RHI.DX12, L"Try destroying already null device!", return;);
+		EDO_ERROR(mHandle && mAdapter, Edo.RHI.DX12.Device, L"Try destroying already null device!", return;);
 
 		// Queue
 		{
 			// GFX
 			{
-				EDO_LOG(L"Destroying Graphics Queue...", Verbose, Edo.RHI.DX12, mGraphicsQueue.Get());
+				EDO_LOG(L"Destroying Graphics Queue...", Verbose, Edo.RHI.DX12.Device, mGraphicsQueue.Get());
 				mGraphicsQueue.Reset();
 			}
 
 			// CMP
 			{
-				EDO_LOG(L"Destroying Compute Queue...", Verbose, Edo.RHI.DX12, mComputeQueue.Get());
+				EDO_LOG(L"Destroying Compute Queue...", Verbose, Edo.RHI.DX12.Device, mComputeQueue.Get());
 				mComputeQueue.Reset();
 			}
 		}
@@ -1278,12 +1278,12 @@ namespace edo::rhi
 			else
 			{
 				EDO_LOG(L"Device query info queue to clear validation layers failed.",
-					Error, Edo.RHI.DX12, (L"Error Code: %1", hrQueryInfoQueue));
+					Error, Edo.RHI.DX12.Device, (L"Error Code: %1", hrQueryInfoQueue));
 			}
 		}
 	#endif
 
-		EDO_LOG(L"Destroying Device...", Verbose, Edo.RHI.DX12, mHandle.Get());
+		EDO_LOG(L"Destroying Device...", Verbose, Edo.RHI.DX12.Device, mHandle.Get());
 
 		mHandle.Reset();
 		mAdapter.Reset();
@@ -1301,7 +1301,7 @@ namespace edo::rhi
 #if EDO_RHI_GLFW
 	HWND GLFWSurfaceHandle::GetHWND()
 	{
-		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
+		EDO_ASSERT(mHandle, Edo.RHI.Surface.GLFW, L"Try creating Surface from null window!");
 
 		return glfwGetWin32Window(mHandle);
 	}
@@ -1359,7 +1359,7 @@ namespace edo::rhi
 			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface.GetHWND(), &descDX, nullptr, nullptr, &swapchain1);
 			EDO_DX12_ASSERT(hrSwapChainCreated, L"Create Swapchain failed!");
 
-			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.DX12, swapchain1.Get());
+			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.DX12.Swapchain, swapchain1.Get());
 
 			const HRESULT hrSwapChainCast = swapchain1.As(&mHandle);
 			EDO_DX12_ASSERT(hrSwapChainCast, L"Swapchain cast failed!");
@@ -1378,7 +1378,7 @@ namespace edo::rhi
 				const std::wstring name = L"Edo_Swapchain_BackBuffer [" + std::to_wstring(i) + L"]";
 				mBackBuffers[i]->SetName(name.data());
 
-				EDO_LOG((L"Query Swapchain Buffer [%1] success.", i), Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mBackBuffers[i].Get()));
+				EDO_LOG((L"Query Swapchain Buffer [%1] success.", i), Verbose, Edo.RHI.DX12.Swapchain, (L"\"%1\" [%2]", name, mBackBuffers[i].Get()));
 			}
 		}
 
@@ -1386,7 +1386,7 @@ namespace edo::rhi
 		// Sync
 		{
 			mFenceEvent = CreateEvent(nullptr, false, false, nullptr);
-			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12, L"Create Swapchain Fence Event failed!");
+			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12.Swapchain, L"Create Swapchain Fence Event failed!");
 
 			const HRESULT hrSwapChainFenceCreated = _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
 			EDO_DX12_ASSERT(hrSwapChainFenceCreated, L"Create Swapchain Fence failed!");
@@ -1394,7 +1394,7 @@ namespace edo::rhi
 			const LPCWSTR name = L"Edo_Swapchain_Fence";
 			mFence->SetName(name);
 
-			EDO_LOG(L"Create Swapchain Fence success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mFence.Get()));
+			EDO_LOG(L"Create Swapchain Fence success.", Verbose, Edo.RHI.DX12.Swapchain, (L"\"%1\" [%2]", name, mFence.Get()));
 		}
 	}
 
@@ -1405,20 +1405,20 @@ namespace edo::rhi
 		// Sync
 		{
 			CloseHandle(mFenceEvent);
-			EDO_LOG(L"Destroy Swapchain Fence Event success", Verbose, Edo.RHI.DX12, mFenceEvent);
+			EDO_LOG(L"Destroy Swapchain Fence Event success", Verbose, Edo.RHI.DX12.Swapchain, mFenceEvent);
 			mFenceEvent = nullptr;
 
-			EDO_LOG(L"Destroying Swapchain Fence...", Verbose, Edo.RHI.DX12, mFence.Get());
+			EDO_LOG(L"Destroying Swapchain Fence...", Verbose, Edo.RHI.DX12.Swapchain, mFence.Get());
 			mFence.Reset();
 		}
 
 		for (size_t i = 0; i < mBackBuffers.size(); ++i)
 		{
-			EDO_LOG((L"Destroying Swapchain image [%1]...", i), Verbose, Edo.RHI.DX12, mBackBuffers[i].Get());
+			EDO_LOG((L"Destroying Swapchain image [%1]...", i), Verbose, Edo.RHI.DX12.Swapchain, mBackBuffers[i].Get());
 			mBackBuffers[i].Reset();
 		}
 
-		EDO_LOG(L"Destroying Swapchain...", Verbose, Edo.RHI.DX12, mHandle.Get());
+		EDO_LOG(L"Destroying Swapchain...", Verbose, Edo.RHI.DX12.Swapchain, mHandle.Get());
 		mHandle.Reset();
 	}
 
@@ -1468,7 +1468,7 @@ namespace edo::rhi
 			const std::wstring name = L"Edo_CommandAlloc";
 			mAlloc->SetName(name.c_str());
 
-			EDO_LOG(L"Create Command Allocator success", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mAlloc.Get()));
+			EDO_LOG(L"Create Command Allocator success", Verbose, Edo.RHI.DX12.Command, (L"\"%1\" [%2]", name, mAlloc.Get()));
 		}
 
 		// Command List
@@ -1482,7 +1482,7 @@ namespace edo::rhi
 			const LPCWSTR name = L"Edo_CommandList";
 			mHandle->SetName(name);
 
-			EDO_LOG(L"Create Command List success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+			EDO_LOG(L"Create Command List success.", Verbose, Edo.RHI.DX12.Command, (L"\"%1\" [%2]", name, mHandle.Get()));
 		}
 	}
 
@@ -1490,10 +1490,10 @@ namespace edo::rhi
 	{
 		(void)_device;
 
-		EDO_LOG(L"Destroying Command List...", Verbose, Edo.RHI.DX12, mHandle.Get());
+		EDO_LOG(L"Destroying Command List...", Verbose, Edo.RHI.DX12.Command, mHandle.Get());
 		mHandle.Reset();
 
-		EDO_LOG(L"Destroying Command Allocator...", Verbose, Edo.RHI.DX12, mAlloc.Get());
+		EDO_LOG(L"Destroying Command Allocator...", Verbose, Edo.RHI.DX12.Command, mAlloc.Get());
 		mAlloc.Reset();
 	}
 
@@ -1511,7 +1511,7 @@ namespace edo::rhi
 	{
 		(void)_device;
 
-		EDO_LOG(L"Create Shader success", Verbose, Edo.RHI.DX12, (L"[%1]", mHandle.Get()));
+		EDO_LOG(L"Create Shader success", Verbose, Edo.RHI.DX12.Shader, (L"[%1]", mHandle.Get()));
 	}
 
 	void Shader::Destroy(const Device& _device)
@@ -1520,12 +1520,12 @@ namespace edo::rhi
 
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying Shader...", Verbose, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying Shader...", Verbose, Edo.RHI.DX12.Shader, mHandle.Get());
 			mHandle.Reset();
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Shader", Warning, Edo.RHI.DX12);
+			EDO_LOG("Try destroy null Shader", Warning, Edo.RHI.DX12.Shader);
 		}
 	}
 
@@ -1621,7 +1621,7 @@ namespace edo::rhi
 					return D3D12_FILL_MODE_WIREFRAME;
 				default:
 				{
-					EDO_LOG((L"Polygon Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12);
+					EDO_LOG((L"Polygon Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12.Pipeline);
 					return D3D12_FILL_MODE_SOLID;
 				}
 			}
@@ -1639,7 +1639,7 @@ namespace edo::rhi
 					return D3D12_CULL_MODE_BACK;
 				default:
 				{
-					EDO_LOG((L"Culling Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12);
+					EDO_LOG((L"Culling Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12.Pipeline);
 					return D3D12_CULL_MODE_NONE;
 				}
 			}
@@ -1655,7 +1655,7 @@ namespace edo::rhi
 					return FALSE;
 				default:
 				{
-					EDO_LOG((L"FrontFace Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12);
+					EDO_LOG((L"FrontFace Mode {%1} not supported", static_cast<uint32_t>(_mode)), Error, Edo.RHI.DX12.Pipeline);
 					return TRUE;
 				}
 			}
@@ -1873,13 +1873,13 @@ namespace edo::rhi
 		// PipelineState
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying PipelineState...", Verbose, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying PipelineState...", Verbose, Edo.RHI.DX12.Pipeline, mHandle.Get());
 
 			mHandle.Reset();
 		}
 		else
 		{
-			EDO_LOG("Try destroy null PipelineState", Warning, Edo.RHI.DX12);
+			EDO_LOG("Try destroy null PipelineState", Warning, Edo.RHI.DX12.Pipeline);
 		}
 	}
 
@@ -1902,7 +1902,7 @@ namespace edo::rhi
 				return D3D12_HEAP_TYPE_READBACK;
 			default:
 			{
-				EDO_LOG((L"Buffer Type {%1} not supported", static_cast<uint32_t>(_type)), Error, Edo.RHI.DX12);
+				EDO_LOG((L"Buffer Type {%1} not supported", static_cast<uint32_t>(_type)), Error, Edo.RHI.DX12.Buffer);
 				return D3D12_HEAP_TYPE_DEFAULT;
 			}
 			}
@@ -1919,7 +1919,7 @@ namespace edo::rhi
 			name = L"Edo_UnknownBuffer_" + std::to_wstring(++uBuffIndex);
 		}
 
-		EDO_ERROR(!mHandle, Edo.RHI.DX12, (L"Try create on non-null Buffer `%1`"), name);
+		EDO_ERROR(!mHandle, Edo.RHI.DX12.Buffer, (L"Try create on non-null Buffer `%1`"), name);
 
 		const D3D12_HEAP_PROPERTIES heap{
 			.Type = intl::MapBufferTypeToDX(_desc.type),
@@ -1944,7 +1944,7 @@ namespace edo::rhi
 
 		mHandle->SetName(name.c_str());
 
-		EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+		EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.DX12.Buffer, (L"\"%1\" [%2]", name, mHandle.Get()));
 
 
 		// TODO: upload data
@@ -1957,12 +1957,12 @@ namespace edo::rhi
 
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying Buffer...", Verbose, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying Buffer...", Verbose, Edo.RHI.DX12.Buffer, mHandle.Get());
 			mHandle.Reset();
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Buffer", Warning, Edo.RHI.DX12);
+			EDO_LOG("Try destroy null Buffer", Warning, Edo.RHI.DX12.Buffer);
 		}
 	}
 
@@ -2037,8 +2037,8 @@ namespace edo::rhi
 			name = L"Edo_UnknownTexture_" + std::to_wstring(++uTextIndex);
 		}
 
-		EDO_ERROR(!mHandle, Edo.RHI.DX12, (L"Try create on non-null Texture `%1`", name));
-		EDO_ERROR(!((_desc.usage & TextureUsage::RT) && _data), Edo.RHI.DX12,
+		EDO_ERROR(!mHandle, Edo.RHI.DX12.Texture, (L"Try create on non-null Texture `%1`", name));
+		EDO_ERROR(!((_desc.usage & TextureUsage::RT) && _data), Edo.RHI.DX12.Texture,
 			(L"Can not provide data to a RenderTarget Texture `%1`", name));
 
 		const D3D12_HEAP_PROPERTIES heap{
@@ -2064,7 +2064,7 @@ namespace edo::rhi
 
 		mHandle->SetName(name.c_str());
 
-		EDO_LOG(L"Create Texture success.", Verbose, Edo.RHI.DX12, (L"\"%1\" [%2]", name, mHandle.Get()));
+		EDO_LOG(L"Create Texture success.", Verbose, Edo.RHI.DX12.Texture, (L"\"%1\" [%2]", name, mHandle.Get()));
 
 
 		// TODO: upload data
@@ -2077,12 +2077,12 @@ namespace edo::rhi
 
 		if (mHandle)
 		{
-			EDO_LOG(L"Destroying Texture...", Verbose, Edo.RHI.DX12, mHandle.Get());
+			EDO_LOG(L"Destroying Texture...", Verbose, Edo.RHI.DX12.Texture, mHandle.Get());
 			mHandle.Reset();
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Texture", Warning, Edo.RHI.DX12);
+			EDO_LOG("Try destroy null Texture", Warning, Edo.RHI.DX12.Texture);
 		}
 	}
 
@@ -2167,7 +2167,7 @@ namespace edo::rhi
 
 				default:
 				{
-					EDO_LOG((L"Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.VK);
+					EDO_LOG((L"Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.VK.Format);
 					return VK_FORMAT_UNDEFINED;
 				}
 			}
@@ -2242,7 +2242,7 @@ namespace edo::rhi
 
 				default:
 				{
-					EDO_LOG((L"VK Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.VK);
+					EDO_LOG((L"VK Format {%1} not supported", static_cast<uint32_t>(_format)), Error, Edo.RHI.VK.Format);
 					return Format::Unknown;
 				}
 			}
@@ -2342,7 +2342,7 @@ namespace edo::rhi
 
 	void Initialize()
 	{
-		EDO_ERROR(!intl::gInstance, Edo.RHI.VK, L"Try initializing already initialized API!");
+		EDO_ERROR(!intl::gInstance, Edo.RHI.VK.Instance, L"Try initializing already initialized API!");
 
 		const VkApplicationInfo appInfo{
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -2396,7 +2396,7 @@ namespace edo::rhi
 				// Layer not found.
 				if (!layerFound)
 				{
-					EDO_LOG((L"Validation Layers [%1] not supported!", intl::gValidationLayers[i]), Error, Edo.RHI.VK.ValidationLayers);
+					EDO_LOG((L"Validation Layers [%1] not supported!", intl::gValidationLayers[i]), Error, Edo.RHI.VK.Instance);
 				}
 			}
 		}
@@ -2420,10 +2420,10 @@ namespace edo::rhi
 		const VkResult vrInstanceCreated = vkCreateInstance(&instanceCreateInfo, nullptr, &intl::gInstance);
 		EDO_VK_ASSERT(vrInstanceCreated, L"Create VkInstance failed!");
 		
-		EDO_LOG("Create VkInstance success.", Verbose, Edo.RHI.VK, intl::gInstance);
+		EDO_LOG("Create VkInstance success.", Verbose, Edo.RHI.VK.Instance, intl::gInstance);
 
 	#if EDO_CONFIG_DEBUG
-		EDO_ERROR(!intl::gDebugMessenger, Edo.RHI.VK, L"Try initializing already initialized API Debug callback!");
+		EDO_ERROR(!intl::gDebugMessenger, Edo.RHI.VK.Instance, L"Try initializing already initialized API Debug callback!");
 
 		// Validation Layers
 		{
@@ -2434,11 +2434,11 @@ namespace edo::rhi
 				const VkResult vrDebugCreated = createDebugFunc(intl::gInstance, &debugUtilsInfo, nullptr, &intl::gDebugMessenger);
 				EDO_VK_ASSERT(vrDebugCreated, L"Failed to create vulkan debug messenger!");
 
-				EDO_LOG(L"Debug Messenger created.", Verbose, Edo.RHI.VK, intl::gDebugMessenger);
+				EDO_LOG(L"Debug Messenger created.", Verbose, Edo.RHI.VK.Instance, intl::gDebugMessenger);
 			}
 			else
 			{
-				EDO_LOG(L"Extension PFN_vkCreateDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK);
+				EDO_LOG(L"Extension PFN_vkCreateDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK.Instance);
 			}
 		}
 	#endif // EDO_CONFIG_DEBUG
@@ -2446,7 +2446,7 @@ namespace edo::rhi
 
 	void Shutdown()
 	{
-		EDO_ERROR(intl::gInstance, Edo.RHI.DX12, L"Try shutting down already null API!", return;);
+		EDO_ERROR(intl::gInstance, Edo.RHI.DX12.Instance, L"Try shutting down already null API!", return;);
 
 	#if EDO_CONFIG_DEBUG
 		if (intl::gDebugMessenger != VK_NULL_HANDLE)
@@ -2456,18 +2456,18 @@ namespace edo::rhi
 			if (destroyDebugFunc)
 			{
 				destroyDebugFunc(intl::gInstance, intl::gDebugMessenger, nullptr);
-				EDO_LOG(L"Destroy Debug Messenger success.", Verbose, Edo.RHI.VK, intl::gDebugMessenger);
+				EDO_LOG(L"Destroy Debug Messenger success.", Verbose, Edo.RHI.VK.Instance, intl::gDebugMessenger);
 				intl::gDebugMessenger = VK_NULL_HANDLE;
 			}
 			else
 			{
-				EDO_LOG(L"Extension PFN_vkDestroyDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK);
+				EDO_LOG(L"Extension PFN_vkDestroyDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK.Instance);
 			}
 		}
 	#endif
 
 		vkDestroyInstance(intl::gInstance, nullptr);
-		EDO_LOG(L"Destroy Instance success", Verbose, Edo.RHI.VK, intl::gInstance);
+		EDO_LOG(L"Destroy Instance success", Verbose, Edo.RHI.VK.Instance, intl::gInstance);
 		intl::gInstance = VK_NULL_HANDLE;
 	}
 
@@ -2488,13 +2488,20 @@ namespace edo::rhi
 #if EDO_RHI_GLFW
 	VkSurfaceKHR GLFWSurfaceHandle::CreateVkSurfaceKHR()
 	{
-		EDO_ASSERT(mHandle, Edo.RHI.GLFW, L"Try creating Surface from null window!");
+		EDO_ASSERT(mHandle, Edo.RHI.Surface.GLFW, L"Try creating Surface from null window!");
 
 		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
 		const VkResult vrSurfaceCreated = glfwCreateWindowSurface(intl::gInstance, mHandle, nullptr, &surfaceKHR);
-		EDO_VK_ASSERT(vrSurfaceCreated, L"Create Window Surafce failed!");
-			
-		SA_LOG("Create Window Surface success.", Verbose, Edo.RHI.GLFW, surfaceKHR);
+
+		if (vrSurfaceCreated != VkResult::VK_SUCCESS)
+		{
+			const char* error;
+			glfwGetError(&error);
+
+			EDO_LOG((L"Create Window Surface `glfwCreateWindowSurface` failed!" + edo::StringFormat(L"\tError Code: %1", _vres)), AssertFailure, Edo.RHI.Surface.GLFW, error);
+		}
+
+		SA_LOG("Create Window Surface success.", Verbose, Edo.RHI.Surface.GLFW, surfaceKHR);
 
 		return surfaceKHR;
 	}
@@ -2510,7 +2517,7 @@ namespace edo::rhi
 		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
 
 		const bool res = mHandle.createVulkanSurface(intl::gInstance, surfaceKHR);
-		EDO_ASSERT(res, Edo.RHI.SFML, L"Create Window Surface failed!");
+		EDO_ASSERT(res, Edo.RHI.Surface.SFML, L"Create Window Surface failed!");
 
 		return surfaceKHR;
 	}
@@ -2525,8 +2532,14 @@ namespace edo::rhi
 	{
 		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
 
-		const bool res = SDL_Vulkan_CreateSurface(mHandle, intl::gInstance, nullptr, &surfaceKHR);
-		EDO_ASSERT(res, Edo.RHI.SDL3, L"Create Window Surface failed!");
+		const bool bRes = SDL_Vulkan_CreateSurface(mHandle, intl::gInstance, nullptr, &surfaceKHR);
+
+		if (bRes)
+		{
+			const char* error = SDL_GetError();
+
+			EDO_LOG(L"Create Window Surface `SDL_Vulkan_CreateSurface()` failed!", AssertFailure, Edo.RHI.Surface.SDL3, error)
+		}
 
 		return surfaceKHR;
 	}
@@ -2778,13 +2791,13 @@ namespace edo::rhi
 		{
 			vkDestroyPipeline(_device.Get(), mHandle, nullptr);
 
-			EDO_LOG(L"Destroy Pipeline success.", Verbose, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Destroy Pipeline success.", Verbose, Edo.RHI.VK.Pipeline, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
 		else
 		{
-			EDO_LOG("Try destroy null pipeline", Warning, Edo.RHI.VK);
+			EDO_LOG("Try destroy null pipeline", Warning, Edo.RHI.VK.Pipeline);
 		}
 	}
 
@@ -2795,8 +2808,8 @@ namespace edo::rhi
 
 	void Buffer::Create(const Device& _device, const BufferDesc& _desc)
 	{
-		EDO_ERROR(!mHandle, Edo.RHI.VK, "Try create on non-null Buffer");
-		EDO_ERROR(!mMemory, Edo.RHI.VK, "Try create on non-null Buffer");
+		EDO_ERROR(!mHandle, Edo.RHI.VK.Buffer, "Try create on non-null Buffer");
+		EDO_ERROR(!mMemory, Edo.RHI.VK.Buffer, "Try create on non-null Buffer");
 
 		// Buffer
 		{
@@ -2814,7 +2827,7 @@ namespace edo::rhi
 			const VkResult vrBufferCreated = vkCreateBuffer(_device.Get(), &bufferInfo, nullptr, &mHandle);
 			EDO_VK_ASSERT(vrBufferCreated, L"Create Buffer failed!");
 
-			EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Create Buffer success", Verbose, Edo.RHI.VK.Buffer, mHandle);
 		}
 
 		// Memory
@@ -2832,7 +2845,7 @@ namespace edo::rhi
 			const VkResult vrBufferAlloc = vkAllocateMemory(_device.Get(), &allocInfo, nullptr, &mMemory);
 			EDO_VK_ASSERT(vrBufferAlloc, L"Create Buffer Memory failed!");
 
-			EDO_LOG(L"Create Buffer Memory success", Verbose, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Create Buffer Memory success", Verbose, Edo.RHI.VK.Buffer, mMemory);
 		}
 
 		// Bind
@@ -2840,7 +2853,7 @@ namespace edo::rhi
 			const VkResult vrBindBufferMem = vkBindBufferMemory(_device.Get(), mHandle, mMemory, 0);
 			EDO_VK_ASSERT(vrBindBufferMem, L"Bind Buffer Memory failed!");
 
-			EDO_LOG(L"Bind Buffer Memory success", Verbose, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Bind Buffer Memory success", Verbose, Edo.RHI.VK.Buffer, mMemory);
 		}
 	}
 
@@ -2851,13 +2864,13 @@ namespace edo::rhi
 		{
 			vkDestroyBuffer(_device.Get(), mHandle, nullptr);
 
-			EDO_LOG(L"Destroy Buffer success.", Verbose, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Destroy Buffer success.", Verbose, Edo.RHI.VK.Buffer, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Buffer", Warning, Edo.RHI.VK);
+			EDO_LOG("Try destroy null Buffer", Warning, Edo.RHI.VK.Buffer);
 		}
 
 		// Memory
@@ -2865,13 +2878,13 @@ namespace edo::rhi
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
-			EDO_LOG(L"Destroy Buffer Memory success.", Verbose, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Destroy Buffer Memory success.", Verbose, Edo.RHI.VK.Buffer, mMemory);
 
 			mMemory = VK_NULL_HANDLE;
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Buffer Memory", Warning, Edo.RHI.VK);
+			EDO_LOG("Try destroy null Buffer Memory", Warning, Edo.RHI.VK.Buffer);
 		}
 	}
 
@@ -2882,8 +2895,8 @@ namespace edo::rhi
 
 	void Texture::Create(const Device& _device, const TextureDesc& _desc)
 	{
-		EDO_ERROR(!mHandle, Edo.RHI.VK, "Try create on non-null Texture");
-		EDO_ERROR(!mMemory, Edo.RHI.VK, "Try create on non-null Texture");
+		EDO_ERROR(!mHandle, Edo.RHI.VK.Texture, "Try create on non-null Texture");
+		EDO_ERROR(!mMemory, Edo.RHI.VK.Texture, "Try create on non-null Texture");
 
 		// Image
 		{
@@ -2912,7 +2925,7 @@ namespace edo::rhi
 			const VkResult vrImageCreated = vkCreateImage(_device.Get(), &imageInfo, nullptr, &mHandle);
 			EDO_VK_ASSERT(vrImageCreated, L"Create Texture failed!");
 
-			EDO_LOG(L"Create Texture success", Verbose, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Create Texture success", Verbose, Edo.RHI.VK.Texture, mHandle);
 		}
 
 		// ImageMemory
@@ -2930,7 +2943,7 @@ namespace edo::rhi
 			const VkResult vrImageAlloc = vkAllocateMemory(_device.Get(), &allocInfo, nullptr, &mMemory);
 			EDO_VK_ASSERT(vrImageAlloc, L"Create Texture Memory failed!");
 
-			EDO_LOG(L"Create Texture Memory success", Verbose, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Create Texture Memory success", Verbose, Edo.RHI.VK.Texture, mMemory);
 		}
 
 		// Bind
@@ -2938,7 +2951,7 @@ namespace edo::rhi
 			const VkResult vrImageBindMem = vkBindImageMemory(_device.Get(), mHandle, mMemory, 0);
 			EDO_VK_ASSERT(vrImageBindMem, L"Bind Texture Memory failed!");
 
-			EDO_LOG(L"Bind Texture Memory success", Verbose, Edo.RHI.VK);
+			EDO_LOG(L"Bind Texture Memory success", Verbose, Edo.RHI.VK.Texture);
 		}
 	}
 
@@ -2949,13 +2962,13 @@ namespace edo::rhi
 		{
 			vkDestroyImage(_device.Get(), mHandle, nullptr);
 
-			EDO_LOG(L"Destroy Texture success.", Verbose, Edo.RHI.VK, mHandle);
+			EDO_LOG(L"Destroy Texture success.", Verbose, Edo.RHI.VK.Texture, mHandle);
 
 			mHandle = VK_NULL_HANDLE;
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Texture", Warning, Edo.RHI.VK);
+			EDO_LOG("Try destroy null Texture", Warning, Edo.RHI.VK.Texture);
 		}
 
 		// Memory
@@ -2963,13 +2976,13 @@ namespace edo::rhi
 		{
 			vkFreeMemory(_device.Get(), mMemory, nullptr);
 
-			EDO_LOG(L"Destroy Image Memory success.", Verbose, Edo.RHI.VK, mMemory);
+			EDO_LOG(L"Destroy Image Memory success.", Verbose, Edo.RHI.VK.Texture, mMemory);
 
 			mMemory = VK_NULL_HANDLE;
 		}
 		else
 		{
-			EDO_LOG("Try destroy null Image Memory", Warning, Edo.RHI.VK);
+			EDO_LOG("Try destroy null Image Memory", Warning, Edo.RHI.VK.Texture);
 		}
 	}
 
