@@ -27,5 +27,5 @@ namespace edo::UT::RHI
 		}
 	};
 
-	EDO_RENDER_TEST(HelloTriangleTest, HelloTriangle)
+	EDO_RENDER_TEST(HelloTriangleTest, 1_HelloTriangle)
 }

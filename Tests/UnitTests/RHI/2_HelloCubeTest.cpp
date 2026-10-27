@@ -20,5 +20,5 @@ namespace edo::UT::RHI
 		}
 	};
 
-	EDO_RENDER_TEST(HelloCubeTest, HelloCube)
+	EDO_RENDER_TEST(HelloCubeTest, 2_HelloCube)
 }

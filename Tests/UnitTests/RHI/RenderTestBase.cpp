@@ -19,8 +19,6 @@ namespace edo::UT::RHI
 		device.Create();
 
 		rhi::SwapchainDesc scDesc{
-			.width = windowSize.x,
-			.height = windowSize.y,
 			.bufferingCount = bufferingCount,
 	#if EDO_RHI_GLFW
 			.surface = rhi::GLFWSurfaceHandle(winHelper.window)

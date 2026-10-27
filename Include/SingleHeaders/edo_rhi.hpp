@@ -274,6 +274,17 @@ namespace edo::rhi
 	class ISurfaceHandle
 	{
 	public:
+		/**
+		* Checks current handle valid state
+		*/
+		virtual inline bool IsValid() { return false; }
+
+		/**
+		* Get surface (width;height) size available for render.
+		* Required if no (width;height) is provided into `SwapchainDesc`
+		*/
+		virtual inline void GetRenderSize(uint32_t& _width, uint32_t& _height) { _width = 0u; _height = 0u; }
+
 #if EDO_RHI_DX12
 		/**
 		* Retreive Windows native HWND from Window API
@@ -310,6 +321,17 @@ namespace edo::rhi
 		{
 		}
 
+		inline bool IsValid() override final { return mHandle != nullptr; }
+
+		inline void GetRenderSize(uint32_t& _width, uint32_t& _height) override final
+		{
+			int width, height;
+			glfwGetWindowSize(mHandle, &width, &height);
+
+			_width = static_cast<uint32_t>(width);
+			_height = static_cast<uint32_t>(height);
+		}
+
 #if EDO_RHI_DX12
 		HWND GetHWND() override final;
 #endif // EDO_RHI_DX12
@@ -340,6 +362,16 @@ namespace edo::rhi
 		{
 		}
 
+		inline bool IsValid() override final { return mHandle.isOpen(); }
+
+		inline void GetRenderSize(uint32_t& _width, uint32_t& _height) override final
+		{
+			const sf::Vector2u size = mHandle.getSize();
+
+			_width = size.x;
+			_height = size.y;
+		}
+
 #if EDO_RHI_DX12
 		HWND GetHWND() override final;
 #endif // EDO_RHI_DX12
@@ -368,6 +400,29 @@ namespace edo::rhi
 		inline SDL3SurfaceHandle(SDL_Window* _window) noexcept :
 			mHandle{ _window }
 		{
+		}
+
+		inline bool IsValid() override final { return mHandle != nullptr; }
+
+		inline void GetRenderSize(uint32_t& _width, uint32_t& _height) override final
+		{
+			int width, height;
+			const bool bRes = SDL_GetWindowSizeInPixels(nullptr, &width, &height);
+
+			if (bRes)
+			{
+				_width = static_cast<uint32_t>(width);
+				_height = static_cast<uint32_t>(height);
+			}
+			else
+			{
+				const char* error = SDL_GetError();
+
+				EDO_LOG("SDL_GetWindowSizeInPixels failed!", Error, Edo.RHI.Surface.SDL3, error);
+
+				_width = 0u;
+				_height = 0u;
+			}
 		}
 
 #if EDO_RHI_DX12
@@ -1339,11 +1394,23 @@ namespace edo::rhi
 
 	void Swapchain::Create(const Device& _device, const SwapchainDesc& _desc)
 	{
+		EDO_ASSERT(_desc.surface.IsValid(), Edo.RHI.DX12.Swapchain, L"Valid Surface handle must be provided for Swapchain creation!");
+
 		// Swapchain
 		{
+			uint32_t width = 0u;
+			uint32_t height = 0u;
+			_desc.surface.GetRenderSize(width, height);
+			
+			width = _desc.width != 0u ? _desc.width : width;
+			height = _desc.height != 0u ? _desc.height : height;
+
+			EDO_ASSERT(width != 0u, Edo.RHI.DX12.Swapchain, L"Swapchain width must be greater than 0!");
+			EDO_ASSERT(height != 0u, Edo.RHI.DX12.Swapchain, L"Swapchain height must be greater than 0!");
+
 			const DXGI_SWAP_CHAIN_DESC1 descDX{
-				.Width = _desc.width,
-				.Height = _desc.height,
+				.Width = width,
+				.Height = height,
 				.Format = intl::MapFormatToDX(_desc.format == Format::RGBA8_sRGB ? Format::RGBA8_UNORM : _desc.format),
 				.Stereo = false,
 				.SampleDesc = {.Count = 1, .Quality = 0 },

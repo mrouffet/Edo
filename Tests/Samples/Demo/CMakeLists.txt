@@ -7,10 +7,8 @@ file(GLOB_RECURSE EDO_DEMO_SAMPLE_SOURCES "*.cpp")
 add_executable(EdoDemo ${EDO_DEMO_SAMPLE_SOURCES})
 
 target_link_libraries(EdoDemo PUBLIC
-	EdoBase
+	EdoBase glfw
 	d3d12.lib dxgi.lib dxguid.lib dxcompiler.lib
 )
-
-EDO_LinkTestWindowAPI(EdoDemo)
 
 EDO_CopyTestsResources(EdoDemo)

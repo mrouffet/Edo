@@ -41,7 +41,7 @@ int main()
 			glfwInit();
 
 			glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-			window = glfwCreateWindow(windowSize.x, windowSize.y, "FVTDX12_DX12-Window", nullptr, nullptr);
+			window = glfwCreateWindow(windowSize.x, windowSize.y, "Edo_Demo_Window_GLFW", nullptr, nullptr);
 
 			if (!window)
 			{
@@ -63,8 +63,6 @@ int main()
 			device.Create();
 
 			rhi::SwapchainDesc scDesc{
-				.width = windowSize.x,
-				.height = windowSize.y,
 				.bufferingCount = bufferingCount,
 				.surface = rhi::GLFWSurfaceHandle(window)
 			};
