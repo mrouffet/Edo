@@ -4,9 +4,10 @@
 
 # ===== GoogleTest Module =====
 EDO_FFIPackage(
-	CMAKE_TARGET		googletest
+	CMAKE_TARGET		GTest
 	GIT_REPOSITORY		https://github.com/google/googletest
 	GIT_TAG				v1.18.0
+	PACKAGE_NAME		GoogleTest
 	REPO_FULL_NAME		"GoogleTest"
 )
 

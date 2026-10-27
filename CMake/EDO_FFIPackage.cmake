@@ -36,7 +36,7 @@ include(FetchContent)
 #
 #	PACKAGE_NAME
 #		Package name to try find using find_package
-#		Default is repository name from url
+#		Default is CMake target name
 #
 #	PACKAGE_VERSION
 #		Package version to try find using find_package
@@ -70,9 +70,9 @@ function(EDO_FFIPackage)
 		set(PARGS_CMAKE_TARGET ${repoName})
 	endif()
 	
-	# Default same as repository name.
+	# Default same as cmake target name.
 	if(NOT PARGS_PACKAGE_NAME)
-		set(PARGS_PACKAGE_NAME ${repoName})
+		set(PARGS_PACKAGE_NAME ${PARGS_CMAKE_TARGET})
 	endif()
 
 	# Default same as repository name.
