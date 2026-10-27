@@ -16,7 +16,7 @@ if(WIN32)
 	)
 
 	EDO_LinkTestWindowAPI(Edo_UT_RHI_DX12)
-
+	EDO_CopyDXCRuntimeBinaries(Edo_UT_RHI_DX12)
 	EDO_CopyTestsResources(Edo_UT_RHI_DX12)
 
 	gtest_discover_tests(Edo_UT_RHI_DX12)
@@ -41,7 +41,6 @@ if(UNIX OR WIN32)
 		)
 
 		EDO_LinkTestWindowAPI(Edo_UT_RHI_VK)
-
 		EDO_CopyTestsResources(Edo_UT_RHI_VK)
 
 		gtest_discover_tests(Edo_UT_RHI_VK)
@@ -67,7 +66,6 @@ if(false)
 	)
 
 	EDO_LinkTestWindowAPI(Edo_UT_RHI_GL)
-
 	EDO_CopyTestsResources(Edo_UT_RHI_GL)
 
 	gtest_discover_tests(Edo_UT_RHI_GL)
@@ -87,7 +85,6 @@ if(false)
 	)
 
 	EDO_LinkTestWindowAPI(Edo_UT_RHI_CPU)
-
 	EDO_CopyTestsResources(Edo_UT_RHI_CPU)
 
 	gtest_discover_tests(Edo_UT_RHI_CPU)
