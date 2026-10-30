@@ -107,6 +107,8 @@ int main()
 						glfwSetWindowShouldClose(window, true);
 				}
 			}
+
+			swapchain.Present(device);
 		}
 	}
 
@@ -115,6 +117,8 @@ int main()
 	{
 		// Render
 		{
+			device.WaitIdle();
+
 			pixelSH.Destroy(device);
 			vertexSH.Destroy(device);
 

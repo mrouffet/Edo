@@ -62,15 +62,19 @@ namespace edo::UT::RHI
 				accumulateTime -= fixedTime;
 
 				winHelper.ProcessEvents();
-
-				LoopRender_Impl();
 			}
+			
+			LoopRender_Impl();
+
+			swapchain.Present(device);
 		}
 	}
 
 
 	void RenderTestBase::ShutdownRenderBase()
 	{
+		device.WaitIdle();
+
 		for (uint32_t i = 0; i < bufferingCount; ++i)
 		{
 			device.DestroyCommandList(cmdLists[i]);

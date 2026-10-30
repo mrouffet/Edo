@@ -135,6 +135,7 @@ namespace edo::rhi
 // ##############################################################
 
 	class Device;
+	class Queue;
 
 	class Swapchain;
 
@@ -206,6 +207,38 @@ namespace edo::rhi
 
 
 // ##############################################################
+// #						QUEUE								#
+// ##############################################################
+
+	class Queue
+	{
+#if EDO_RHI_DX12
+	private:
+		friend Device;
+
+		MComPtr<ID3D12CommandQueue> mHandle = nullptr;
+
+		HANDLE mFenceEvent = nullptr;
+		MComPtr<ID3D12Fence> mFence = nullptr;
+		uint32_t mFenceValue = 1u;
+	public:
+		ID3D12CommandQueue* Get() const { return mHandle.Get(); }
+		ID3D12CommandQueue* operator->() const { return mHandle.Get(); }
+#endif // EDO_RHI_DX12
+
+#if EDO_RHI_VK
+#endif // EDO_RHI_VK
+
+	private:
+	public:
+		void Create(const Device& _device, const std::wstring& _name = L"");
+		void Destroy(const Device& _device);
+
+		void WaitForComplete();
+	};
+
+
+// ##############################################################
 // #						DEVICE								#
 // ##############################################################
 
@@ -219,16 +252,11 @@ namespace edo::rhi
 		/// Logical Device
 		MComPtr<ID3D12Device4> mHandle = nullptr;
 
-		MComPtr<ID3D12CommandQueue> mGraphicsQueue;
-		MComPtr<ID3D12CommandQueue> mComputeQueue;
-
 	#if EDO_CONFIG_DEBUG
 		DWORD mVLayerCallbackCookie = 0;
 	#endif
 
 	public:
-		ID3D12CommandQueue* GetGraphicsQueue() const { return mGraphicsQueue.Get(); }
-		ID3D12CommandQueue* GetComputeQueue() const { return mComputeQueue.Get(); }
 		ID3D12Device4* operator->() const { return mHandle.Get(); }
 #endif // EDO_RHI_DX12
 
@@ -245,8 +273,13 @@ namespace edo::rhi
 
 	private:
 	public:
+		Queue gfxQueue;
+		Queue cmpQueue;
+
 		void Create();
 		void Destroy();
+
+		void WaitIdle();
 
 		CommandList CreateCommandList();
 		void DestroyCommandList(CommandList& _cmd);
@@ -456,7 +489,7 @@ namespace edo::rhi
 		std::vector<MComPtr<ID3D12Resource>> mBackBuffers{ nullptr };
 
 		HANDLE mFenceEvent = nullptr;
-		MComPtr<ID3D12Fence> mFence;
+		MComPtr<ID3D12Fence> mFence = nullptr;
 		std::vector<uint64_t> mFenceValues{ 0u };
 #endif // EDO_RHI_DX12
 
@@ -1073,20 +1106,20 @@ namespace edo::rhi
 
 		// Shader Compiler
 		{
-			EDO_ERROR(!intl::gShaderCompilerUtils, Edo.RHI.DX12.Instance, L"Try initializing already initialized DXC Shader Compiler!");
+			EDO_ERROR(!intl::gShaderCompilerUtils, Edo.RHI.DX12.DXC, L"Try initializing already initialized DXC Shader Compiler!");
 
 			const HRESULT hCreateUtils = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&intl::gShaderCompilerUtils));
 			EDO_DX12_ASSERT(hCreateUtils, L"Create DXC Shader Compiler Utils failed!");
 
-			EDO_LOG(L"Create DXC Shader Compiler Utils success.", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompilerUtils.Get());
+			EDO_LOG(L"Create DXC Shader Compiler Utils success.", Verbose, Edo.RHI.DX12.DXC, intl::gShaderCompilerUtils.Get());
 
 
-			EDO_ERROR(!intl::gShaderCompiler, Edo.RHI.DX12.Instance, L"Try initializing already initialized DXC Shader Compiler Instance!");
+			EDO_ERROR(!intl::gShaderCompiler, Edo.RHI.DX12.DXC, L"Try initializing already initialized DXC Shader Compiler Instance!");
 
 			const HRESULT hCreateInstance = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&intl::gShaderCompiler));
 			EDO_DX12_ASSERT(hCreateInstance, L"Create DXC Shader Compiler Instance failed!");
 
-			EDO_LOG(L"Create DXC Shader Compiler success.", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompiler.Get());
+			EDO_LOG(L"Create DXC Shader Compiler success.", Verbose, Edo.RHI.DX12.DXC, intl::gShaderCompiler.Get());
 		}
 	}
 
@@ -1094,10 +1127,10 @@ namespace edo::rhi
 	{
 		// Shader Compiler
 		{
-			EDO_LOG(L"Destroying Shader Compiler...", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompiler.Get());
+			EDO_LOG(L"Destroying Shader Compiler...", Verbose, Edo.RHI.DX12.DXC, intl::gShaderCompiler.Get());
 			intl::gShaderCompiler.Reset();
 
-			EDO_LOG(L"Destroying Shader Compiler Utils...", Verbose, Edo.RHI.DX12.Instance, intl::gShaderCompilerUtils.Get());
+			EDO_LOG(L"Destroying Shader Compiler Utils...", Verbose, Edo.RHI.DX12.DXC, intl::gShaderCompilerUtils.Get());
 			intl::gShaderCompilerUtils.Reset();
 		}
 
@@ -1126,6 +1159,83 @@ namespace edo::rhi
 		}
 	}
 
+
+// ##############################################################
+// #						QUEUE								#
+// ##############################################################
+
+	void Queue::Create(const Device& _device, const std::wstring& _name)
+	{
+		// Queue
+		{
+			const D3D12_COMMAND_QUEUE_DESC descDX{
+				.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+				.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+			};
+
+			const HRESULT hrQueueCreated = _device->CreateCommandQueue(&descDX, IID_PPV_ARGS(&mHandle));
+			EDO_DX12_ASSERT(hrQueueCreated, (L"Create %1 Queue failed!", _name));
+
+			std::wstring queueName;
+		#ifdef EDO_SH_DEBUG_GUARD
+			queueName = edo::StringFormat(L"Edo_%1_Queue", _name);
+			mHandle->SetName(queueName.c_str());
+		#endif // EDO_SH_DEBUG_GUARD
+
+			EDO_LOG((L"Create %1 Queue success.", _name), Verbose, Edo.RHI.DX12.Queue, (L"\"%1\" [%2]", queueName, mHandle.Get()));
+		}
+
+		// Sync
+		{
+			mFenceEvent = CreateEvent(nullptr, false, false, nullptr);
+			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12.Queue, (L"Create %1 Queue Fence Event failed!", _name));
+
+			const HRESULT hrSwapChainFenceCreated = _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
+			EDO_DX12_ASSERT(hrSwapChainFenceCreated, (L"Create %1 Queue Fence failed!", _name));
+
+			std::wstring fenceName;
+		#ifdef EDO_SH_DEBUG_GUARD
+			fenceName = edo::StringFormat(L"Edo_%1_Queue_Fence", _name);
+			mFence->SetName(fenceName.c_str());
+		#endif // EDO_SH_DEBUG_GUARD
+
+			EDO_LOG((L"Create %1 Queue Fence success.", _name), Verbose, Edo.RHI.DX12.Queue, (L"\"%1\" [%2]", fenceName, mFence.Get()));
+		}
+	}
+
+	void Queue::Destroy(const Device& _device)
+	{
+		(void)_device;
+
+		// Sync
+		{
+			CloseHandle(mFenceEvent);
+			EDO_LOG(L"Destroy Queue Fence Event success", Verbose, Edo.RHI.DX12.Queue, mFenceEvent);
+			mFenceEvent = nullptr;
+
+			EDO_LOG(L"Destroying Queue Fence...", Verbose, Edo.RHI.DX12.Queue, mFence.Get());
+			mFence.Reset();
+		}
+
+		// Queue
+		{
+			EDO_LOG(L"Destroying Queue...", Verbose, Edo.RHI.DX12.Queue, mHandle.Get());
+			mHandle.Reset();
+		}
+	}
+
+	void Queue::WaitForComplete()
+	{
+		// Schedule a Signal command in the queue.
+		mHandle->Signal(mFence.Get(), mFenceValue);
+
+		// Wait until the fence has been processed.
+		mFence->SetEventOnCompletion(mFenceValue, mFenceEvent);
+		WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+
+		// Increment for next use.
+		++mFenceValue;
+	}
 
 // ##############################################################
 // #						DEVICE								#
@@ -1266,37 +1376,8 @@ namespace edo::rhi
 		
 		// Queues
 		{
-			// GFX
-			{
-				const D3D12_COMMAND_QUEUE_DESC descDX{
-					.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-					.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-				};
-
-				const HRESULT hrGFXCmdQueueCreated = mHandle->CreateCommandQueue(&descDX, IID_PPV_ARGS(&mGraphicsQueue));
-				EDO_DX12_ASSERT(hrGFXCmdQueueCreated, L"Create Graphics Queue failed!");
-				
-				const LPCWSTR name = L"Edo_GraphicsQueue";
-				mGraphicsQueue->SetName(name);
-
-				EDO_LOG(L"Create Graphics Queue success.", Verbose, Edo.RHI.DX12.Device, (L"\"%1\" [%2]", name, mGraphicsQueue.Get()));
-			}
-
-			// CMP
-			{
-				const D3D12_COMMAND_QUEUE_DESC descDX{
-					.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
-					.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-				};
-
-				const HRESULT hrCMDCmdQueueCreated = mHandle->CreateCommandQueue(&descDX, IID_PPV_ARGS(&mComputeQueue));
-				EDO_DX12_ASSERT(hrCMDCmdQueueCreated, L"Create Compute Queue failed!");
-
-				const LPCWSTR name = L"Edo_ComputeQueue";
-				mComputeQueue->SetName(name);
-
-				EDO_LOG(L"Create Compute Queue success.", Verbose, Edo.RHI.DX12.Device, (L"\"%1\" [%2]", name, mComputeQueue.Get()));
-			}
+			gfxQueue.Create(*this, L"GFX");
+			cmpQueue.Create(*this, L"CMP");
 		}
 	}
 
@@ -1306,17 +1387,8 @@ namespace edo::rhi
 
 		// Queue
 		{
-			// GFX
-			{
-				EDO_LOG(L"Destroying Graphics Queue...", Verbose, Edo.RHI.DX12.Device, mGraphicsQueue.Get());
-				mGraphicsQueue.Reset();
-			}
-
-			// CMP
-			{
-				EDO_LOG(L"Destroying Compute Queue...", Verbose, Edo.RHI.DX12.Device, mComputeQueue.Get());
-				mComputeQueue.Reset();
-			}
+			gfxQueue.Destroy(*this);
+			cmpQueue.Destroy(*this);
 		}
 
 	#if EDO_CONFIG_DEBUG
@@ -1342,6 +1414,26 @@ namespace edo::rhi
 
 		mHandle.Reset();
 		mAdapter.Reset();
+	}
+
+	void Device::WaitIdle()
+	{
+		// Schedule a Signal command in queues.
+		gfxQueue.mHandle->Signal(gfxQueue.mFence.Get(), gfxQueue.mFenceValue);
+		cmpQueue.mHandle->Signal(cmpQueue.mFence.Get(), cmpQueue.mFenceValue);
+
+
+		// Wait until the fence has been processed.
+		gfxQueue.mFence->SetEventOnCompletion(gfxQueue.mFenceValue, gfxQueue.mFenceEvent);
+		cmpQueue.mFence->SetEventOnCompletion(cmpQueue.mFenceValue, cmpQueue.mFenceEvent);
+
+		HANDLE fenceEvents[] = { gfxQueue.mFenceEvent, cmpQueue.mFenceEvent };
+		WaitForMultipleObjectsEx(_countof(fenceEvents), fenceEvents, TRUE, INFINITE, false);
+
+
+		// Increment for next use.
+		++gfxQueue.mFenceValue;
+		++cmpQueue.mFenceValue;
 	}
 
 
@@ -1401,7 +1493,7 @@ namespace edo::rhi
 			uint32_t width = 0u;
 			uint32_t height = 0u;
 			_desc.surface.GetRenderSize(width, height);
-			
+
 			width = _desc.width != 0u ? _desc.width : width;
 			height = _desc.height != 0u ? _desc.height : height;
 
@@ -1423,7 +1515,7 @@ namespace edo::rhi
 			};
 
 			MComPtr<IDXGISwapChain1> swapchain1;
-			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.GetGraphicsQueue(), _desc.surface.GetHWND(), &descDX, nullptr, nullptr, &swapchain1);
+			const HRESULT hrSwapChainCreated = intl::gFactory->CreateSwapChainForHwnd(_device.gfxQueue.Get(), _desc.surface.GetHWND(), &descDX, nullptr, nullptr, &swapchain1);
 			EDO_DX12_ASSERT(hrSwapChainCreated, L"Create Swapchain failed!");
 
 			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.DX12.Swapchain, swapchain1.Get());
@@ -1452,12 +1544,14 @@ namespace edo::rhi
 		
 		// Sync
 		{
+			mFenceValues.resize(_desc.bufferingCount);
+
 			mFenceEvent = CreateEvent(nullptr, false, false, nullptr);
 			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12.Swapchain, L"Create Swapchain Fence Event failed!");
 
 			const HRESULT hrSwapChainFenceCreated = _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
 			EDO_DX12_ASSERT(hrSwapChainFenceCreated, L"Create Swapchain Fence failed!");
-			
+
 			const LPCWSTR name = L"Edo_Swapchain_Fence";
 			mFence->SetName(name);
 
@@ -1500,7 +1594,7 @@ namespace edo::rhi
 		{
 			// Schedule a Signal command in the queue.
 			const UINT64 fenceValue = mFenceValues[frameIndex];
-			const HRESULT hrFenceSignal = _device.GetGraphicsQueue()->Signal(mFence.Get(), fenceValue);
+			const HRESULT hrFenceSignal = _device.gfxQueue->Signal(mFence.Get(), fenceValue);
 			EDO_DX12_ASSERT(hrFenceSignal, L"Swapchain Fence Signal failed");
 
 			const UINT newFrameIndex = mHandle->GetCurrentBackBufferIndex();
@@ -2543,6 +2637,18 @@ namespace edo::rhi
 // #						DEVICE								#
 // ##############################################################
 
+	void Device::Create()
+	{
+	}
+
+	void Device::Destroy()
+	{
+	}
+
+	void Device::WaitIdle()
+	{
+		vkDeviceWaitIdle(mHandle);
+	}
 
 // ##############################################################
 // #						SURFACE								#
