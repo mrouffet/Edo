@@ -14,6 +14,18 @@ endfunction()
 
 
 # ===== Window Modules =====
+## SDL
+option(EDO_TEST_SDL_OPT "Should fetch SDL for tests" OFF)
+if(EDO_TEST_SDL_OPT)
+	EDO_FFIPackage(
+		CMAKE_TARGET		SDL
+		GIT_REPOSITORY		https://github.com/libsdl-org/SDL
+		GIT_TAG				main
+		PACKAGE_NAME		SDL
+		REPO_FULL_NAME		"SDL"
+	)
+endif()
+
 ## GLFW
 option(EDO_TEST_GLFW_OPT "Should fetch GLFW for tests" OFF)
 if(EDO_TEST_GLFW_OPT)
@@ -36,18 +48,6 @@ if(EDO_TEST_SFML_OPT)
 		GIT_TAG				master
 		PACKAGE_NAME		sfml
 		REPO_FULL_NAME		"SFML"
-	)
-endif()
-
-## SDL
-option(EDO_TEST_SDL_OPT "Should fetch SDL for tests" OFF)
-if(EDO_TEST_SDL_OPT)
-	EDO_FFIPackage(
-		CMAKE_TARGET		SDL
-		GIT_REPOSITORY		https://github.com/libsdl-org/SDL
-		GIT_TAG				main
-		PACKAGE_NAME		SDL
-		REPO_FULL_NAME		"SDL"
 	)
 endif()
 
