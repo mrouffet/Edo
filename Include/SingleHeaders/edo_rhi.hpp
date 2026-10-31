@@ -2518,6 +2518,56 @@ namespace edo::rhi
 
 			return VK_FALSE;
 		}
+
+
+		static PFN_vkSetDebugUtilsObjectNameEXT gSetDebugNameFunc = VK_NULL_HANDLE;
+
+		template <typename HandleT>
+		constexpr VkObjectType GetVkObjectTypeFromHandleT()
+		{
+			if constexpr (std::is_same_v<HandleT, VkInstance>)
+				return VK_OBJECT_TYPE_INSTANCE;
+			else if constexpr(std::is_same_v<HandleT, VkPhysicalDevice>)
+				return VK_OBJECT_TYPE_PHYSICAL_DEVICE;
+			else if constexpr (std::is_same_v<HandleT, VkDevice>)
+				return VK_OBJECT_TYPE_DEVICE;
+			else if constexpr (std::is_same_v<HandleT, VkQueue>)
+				return VK_OBJECT_TYPE_QUEUE;
+			else if constexpr (std::is_same_v<HandleT, VkSemaphore>)
+				return VK_OBJECT_TYPE_SEMAPHORE;
+			else if constexpr (std::is_same_v<HandleT, VkCommandBuffer>)
+				return VK_OBJECT_TYPE_COMMAND_BUFFER;
+			else if constexpr (std::is_same_v<HandleT, VkFence>)
+				return VK_OBJECT_TYPE_FENCE;
+			else if constexpr (std::is_same_v<HandleT, VkDeviceMemory>)
+				return VK_OBJECT_TYPE_DEVICE_MEMORY;
+			else if constexpr (std::is_same_v<HandleT, VkBuffer>)
+				return VK_OBJECT_TYPE_BUFFER;
+			else if constexpr (std::is_same_v<HandleT, VkImage>)
+				return VK_OBJECT_TYPE_IMAGE;
+			else if constexpr (std::is_same_v<HandleT, VkBufferView>)
+				return VK_OBJECT_TYPE_BUFFER_VIEW;
+			else if constexpr (std::is_same_v<HandleT, VkImageView>)
+				return VK_OBJECT_TYPE_IMAGE_VIEW;
+			else if constexpr (std::is_same_v<HandleT, VkShaderModule>)
+				return VK_OBJECT_TYPE_SHADER_MODULE;
+			else if constexpr (std::is_same_v<HandleT, VkPipelineLayout>)
+				return VK_OBJECT_TYPE_PIPELINE_LAYOUT;
+			else if constexpr (std::is_same_v<HandleT, VkPipeline>)
+				return VK_OBJECT_TYPE_PIPELINE;
+			else if constexpr (std::is_same_v<HandleT, VkSampler>)
+				return VK_OBJECT_TYPE_SAMPLER;
+			else if constexpr (std::is_same_v<HandleT, VkPipelineLayout>)
+				return VK_OBJECT_TYPE_PIPELINE_LAYOUT;
+			else if constexpr (std::is_same_v<HandleT, VkCommandPool>)
+				return VK_OBJECT_TYPE_COMMAND_POOL;
+			else if constexpr (std::is_same_v<HandleT, VkSurfaceKHR>)
+				return VK_OBJECT_TYPE_SURFACE_KHR;
+			else if constexpr (std::is_same_v<HandleT, VkSwapchainKHR>)
+				return VK_OBJECT_TYPE_SWAPCHAIN_KHR;
+			else
+				return VK_OBJECT_TYPE_UNKNOWN;
+		}
 	#endif // EDO_RHI_DEBUG
 	}
 
@@ -2604,10 +2654,10 @@ namespace edo::rhi
 		EDO_LOG("Create VkInstance success.", Verbose, Edo.RHI.VK.Instance, intl::gInstance);
 
 	#if EDO_CONFIG_DEBUG
-		EDO_ERROR(!intl::gDebugMessenger, Edo.RHI.VK.Instance, L"Try initializing already initialized API Debug callback!");
-
 		// Validation Layers
 		{
+			EDO_ERROR(!intl::gDebugMessenger, Edo.RHI.VK.Instance, L"Try initializing already initialized API Debug callback!");
+
 			auto createDebugFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(intl::gInstance, "vkCreateDebugUtilsMessengerEXT");
 
 			if (createDebugFunc)
@@ -2621,6 +2671,11 @@ namespace edo::rhi
 			{
 				EDO_LOG(L"Extension PFN_vkCreateDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK.Instance);
 			}
+		}
+
+		// SetDebugName
+		{
+			intl::gSetDebugNameFunc = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(intl::gInstance, "vkSetDebugUtilsObjectNameEXT");
 		}
 	#endif // EDO_CONFIG_DEBUG
 	}
@@ -2656,6 +2711,28 @@ namespace edo::rhi
 // ##############################################################
 // #						DEVICE								#
 // ##############################################################
+
+	namespace intl
+	{
+		template <typename HandleT>
+		void SetDebugName(const Device& _device, HandleT _handle, const char* name)
+		{
+#if EDO_CONFIG_DEBUG
+			if (gSetDebugNameFunc)
+			{
+				const VkDebugUtilsObjectNameInfoEXT info{
+					.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+					.pNext = nullptr,
+					.objectType = intl::GetVkObjectTypeFromHandleT<HandleT>(),
+					.objectHandle = reinterpret_cast<uint64_t>(_handle),
+					.pObjectName = name
+				};
+
+				gSetDebugNameFunc(_device.Get(), &info);
+			}
+#endif // EDO_CONFIG_DEBUG
+		}
+	}
 
 	void Device::Create()
 	{
