@@ -247,6 +247,9 @@ namespace edo::rhi
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
+	private:
+		VkQueue mHandle = VK_NULL_HANDLE;
+	public:
 #endif // EDO_RHI_VK
 
 	private:
@@ -514,13 +517,14 @@ namespace edo::rhi
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
+		VkSurfaceKHR mSurface = VK_NULL_HANDLE;
 		VkSwapchainKHR mHandle = VK_NULL_HANDLE;
 #endif // EDO_RHI_VK
 
 	public:
 		void Create(const Device& _device, const SwapchainDesc& _desc);
 		void Destroy(const Device& _device);
-		
+
 		void Present(const Device& _device);
 	};
 
@@ -2816,15 +2820,84 @@ namespace edo::rhi
 #endif // EDO_RHI_SFML
 
 
+// ##############################################################
+// #						SWAPCHAIN							#
+// ##############################################################
+
+	void Swapchain::Create(const Device& _device, const SwapchainDesc& _desc)
 	{
+		EDO_ASSERT(_desc.surface.IsValid(), Edo.RHI.VK.Swapchain, L"Valid Surface handle must be provided for Swapchain creation!");
 
-
+		// Surface
 		{
+			mSurface = _desc.surface.CreateVkSurfaceKHR();
+			intl::SetDebugName(_device, mSurface, "Edo_Surface");
 
+			EDO_LOG(L"Create Surface success.", Verbose, Edo.RHI.VK.Swapchain, mSurface);	
 		}
 
+		// Swapchain
+		{
+			uint32_t width = 0u;
+			uint32_t height = 0u;
+			_desc.surface.GetRenderSize(width, height);
+
+			width = _desc.width != 0u ? _desc.width : width;
+			height = _desc.height != 0u ? _desc.height : height;
+
+			EDO_ASSERT(width != 0u, Edo.RHI.VK.Swapchain, L"Swapchain width must be greater than 0!");
+			EDO_ASSERT(height != 0u, Edo.RHI.VK.Swapchain, L"Swapchain height must be greater than 0!");
+
+			const VkSwapchainCreateInfoKHR descVK{
+					.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+					.pNext = nullptr,
+					.flags = 0u,
+					.surface = mSurface,
+					.minImageCount = _desc.bufferingCount,
+					.imageFormat = intl::MapFormatToVK(_desc.format),
+					.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+					.imageExtent = VkExtent2D{ width, height },
+					.imageArrayLayers = 1u,
+					.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+					.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE, // TODO
+					.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size()),
+					.pQueueFamilyIndices = queueFamilyIndices.data(),
+					.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+					.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+					.presentMode = VK_PRESENT_MODE_FIFO_KHR,
+					.clipped = VK_TRUE,
+					.oldSwapchain = VK_NULL_HANDLE,
+			};
+
+			const VkResult vrSwapchainCreated = vkCreateSwapchainKHR(_device.Get(), &descVK, nullptr, &mHandle);
+			EDO_VK_ASSERT(vrSwapchainCreated, L"Create Swapchain failed!");
+
+			intl::SetDebugName(_device, mHandle, "Edo_Swapchain");
+
+			EDO_LOG(L"Create Swapchain success.", Verbose, Edo.RHI.VK.Swapchain, mHandle);
+		}
 	}
 
+	void Swapchain::Destroy(const Device& _device)
+	{
+		// Swapchain
+		{
+			vkDestroySwapchainKHR(_device.Get(), mHandle, nullptr);
+			EDO_LOG(L"Destroy Swapchain success", Verbose, Edo.RHI.VK.Swapchain, mHandle);
+			mHandle = VK_NULL_HANDLE;
+		}
+
+		// Surface
+		{
+			vkDestroySurfaceKHR(intl::gInstance, mSurface, nullptr);
+			EDO_LOG(L"Destroy Surface success", Verbose, Edo.RHI.VK.Swapchain, mSurface);
+			mSurface = VK_NULL_HANDLE;
+		}
+	}
+
+	void Swapchain::Present(const Device& _device)
+	{
+	}
 
 // ##############################################################
 // #						PIPELINE							#
