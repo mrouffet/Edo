@@ -118,7 +118,7 @@ namespace edo::rhi
 #endif // SDL
 
 #if !defined(EDO_RHI_GLFW)
-	#if __has_include(<GLFW/glfw3.h>))
+	#if __has_include(<GLFW/glfw3.h>)
 		#define EDO_RHI_GLFW 1
 
 		#if defined(_glfw3_h_) && !defined(GLFW_INCLUDE_VULKAN)
@@ -147,6 +147,9 @@ namespace edo::rhi
 
 #endif // EDO_RHI_VK
 
+#ifndef __edo_countof
+#define __edo_countof(_arr) sizeof(_arr) / sizeof(_arr[0])
+#endif
 
 namespace edo::rhi
 {
@@ -230,6 +233,21 @@ namespace edo::rhi
 // #						QUEUE								#
 // ##############################################################
 
+#if EDO_RHI_VK
+	namespace intl
+	{
+		struct QueueFamilyIndices
+		{
+			uint32_t gfx = uint32_t(-1);
+			uint32_t cmp = uint32_t(-1);
+			uint32_t present = uint32_t(-1);
+
+			void ScoreQueue(uint32_t _queue, uint32_t& _gfxCount, uint32_t& _score) const;
+			bool ValidateAndScore(const std::vector<VkQueueFamilyProperties>& _famProps, uint32_t& _score) const;
+		};
+	}
+#endif // EDO_RHI_VK
+
 	class Queue
 	{
 #if EDO_RHI_DX12
@@ -241,20 +259,26 @@ namespace edo::rhi
 		HANDLE mFenceEvent = nullptr;
 		MComPtr<ID3D12Fence> mFence = nullptr;
 		uint32_t mFenceValue = 1u;
+
 	public:
-		ID3D12CommandQueue* Get() const { return mHandle.Get(); }
-		ID3D12CommandQueue* operator->() const { return mHandle.Get(); }
+		void Create(const Device& _device, const std::wstring& _debugName = L"");
+
+		inline ID3D12CommandQueue* Get() const { return mHandle.Get(); }
+		inline ID3D12CommandQueue* operator->() const { return mHandle.Get(); }
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
 	private:
 		VkQueue mHandle = VK_NULL_HANDLE;
+
 	public:
+		void Create(const Device& _device, uint32_t _family, const std::string& _debugName = "");
+
+		inline VkQueue Get() const { return mHandle; }
 #endif // EDO_RHI_VK
 
 	private:
 	public:
-		void Create(const Device& _device, const std::wstring& _name = L"");
 		void Destroy(const Device& _device);
 
 		void WaitForComplete();
@@ -280,7 +304,7 @@ namespace edo::rhi
 	#endif
 
 	public:
-		ID3D12Device4* operator->() const { return mHandle.Get(); }
+		inline ID3D12Device4* operator->() const { return mHandle.Get(); }
 #endif // EDO_RHI_DX12
 
 #if EDO_RHI_VK
@@ -290,8 +314,13 @@ namespace edo::rhi
 		/// Logical Device
 		VkDevice mHandle = VK_NULL_HANDLE;
 
+		intl::QueueFamilyIndices mQuFamIdx{};
+
 	public:
-		VkDevice Get() const { return mHandle; }
+		Queue presentQueue;
+
+		inline VkDevice Get() const { return mHandle; }
+		inline const intl::QueueFamilyIndices& GetQueueFamilyIndices() const { return mQuFamIdx; }
 #endif // EDO_RHI_VK
 
 	private:
@@ -1188,7 +1217,7 @@ namespace edo::rhi
 // #						QUEUE								#
 // ##############################################################
 
-	void Queue::Create(const Device& _device, const std::wstring& _name)
+	void Queue::Create(const Device& _device, const std::wstring& _debugName)
 	{
 		// Queue
 		{
@@ -1198,32 +1227,32 @@ namespace edo::rhi
 			};
 
 			const HRESULT hrQueueCreated = _device->CreateCommandQueue(&descDX, IID_PPV_ARGS(&mHandle));
-			EDO_DX12_ASSERT(hrQueueCreated, (L"Create %1 Queue failed!", _name));
+			EDO_DX12_ASSERT(hrQueueCreated, (L"Create %1 Queue failed!", _debugName));
 
-			std::wstring queueName;
+			std::wstring queueName = _debugName;
 		#ifdef EDO_SH_DEBUG_GUARD
-			queueName = edo::StringFormat(L"Edo_%1_Queue", _name);
-			mHandle->SetName(queueName.c_str());
+			queueName = edo::StringFormat(L"Edo_%1_Queue", _debugName);
 		#endif // EDO_SH_DEBUG_GUARD
+			mHandle->SetName(queueName.c_str());
 
-			EDO_LOG((L"Create %1 Queue success.", _name), Verbose, Edo.RHI.DX12.Queue, (L"\"%1\" [%2]", queueName, mHandle.Get()));
+			EDO_LOG((L"Create %1 Queue success.", _debugName), Verbose, Edo.RHI.DX12.Queue, (L"\"%1\" [%2]", queueName, mHandle.Get()));
 		}
 
 		// Sync
 		{
 			mFenceEvent = CreateEvent(nullptr, false, false, nullptr);
-			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12.Queue, (L"Create %1 Queue Fence Event failed!", _name));
+			EDO_ASSERT(mFenceEvent, Edo.RHI.DX12.Queue, (L"Create %1 Queue Fence Event failed!", _debugName));
 
 			const HRESULT hrSwapChainFenceCreated = _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
-			EDO_DX12_ASSERT(hrSwapChainFenceCreated, (L"Create %1 Queue Fence failed!", _name));
+			EDO_DX12_ASSERT(hrSwapChainFenceCreated, (L"Create %1 Queue Fence failed!", _debugName));
 
-			std::wstring fenceName;
+			std::wstring fenceName = _debugName;
 		#ifdef EDO_SH_DEBUG_GUARD
-			fenceName = edo::StringFormat(L"Edo_%1_Queue_Fence", _name);
-			mFence->SetName(fenceName.c_str());
+			fenceName = edo::StringFormat(L"Edo_%1_Queue_Fence", _debugName);
 		#endif // EDO_SH_DEBUG_GUARD
+			mFence->SetName(fenceName.c_str());
 
-			EDO_LOG((L"Create %1 Queue Fence success.", _name), Verbose, Edo.RHI.DX12.Queue, (L"\"%1\" [%2]", fenceName, mFence.Get()));
+			EDO_LOG((L"Create %1 Queue Fence success.", _debugName), Verbose, Edo.RHI.DX12.Queue, (L"\"%1\" [%2]", fenceName, mFence.Get()));
 		}
 	}
 
@@ -1452,7 +1481,7 @@ namespace edo::rhi
 		cmpQueue.mFence->SetEventOnCompletion(cmpQueue.mFenceValue, cmpQueue.mFenceEvent);
 
 		HANDLE fenceEvents[] = { gfxQueue.mFenceEvent, cmpQueue.mFenceEvent };
-		WaitForMultipleObjectsEx(_countof(fenceEvents), fenceEvents, TRUE, INFINITE, false);
+		WaitForMultipleObjectsEx(__edo_countof(fenceEvents), fenceEvents, TRUE, INFINITE, false);
 
 
 		// Increment for next use.
@@ -1966,7 +1995,7 @@ namespace edo::rhi
 			};
 			const D3D12_INPUT_LAYOUT_DESC inputLayout{
 				.pInputElementDescs = inputElems,
-				.NumElements = _countof(inputElems)
+				.NumElements = __edo_countof(inputElems)
 			};
 
 
@@ -2443,6 +2472,22 @@ namespace edo::rhi
 		static VkInstance gInstance = VK_NULL_HANDLE;
 		static VkDebugUtilsMessengerEXT gDebugMessenger = VK_NULL_HANDLE;
 
+		static const char* gInstanceExts[]{
+			//VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
+			//VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
+			//VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
+			//VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+			//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+			//VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME,
+			//VK_KHR_MAP_MEMORY_2_EXTENSION_NAME,
+			//VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+			//VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME,
+
+	#if EDO_CONFIG_DEBUG
+			VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+	#endif
+		};
+
 	#if EDO_CONFIG_DEBUG
 		static std::array<const char*, 1> gValidationLayers{
 			"VK_LAYER_KHRONOS_validation"
@@ -2491,11 +2536,7 @@ namespace edo::rhi
 			{
 				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
 				{
-					/**
-					* Filter: too much logging.
-					* EDO logging already tracking.
-					*/
-					//EDO_LOG(pCallbackData->pMessage, Verbose, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
+					EDO_LOG(pCallbackData->pMessage, Verbose, Edo.RHI.VK.ValidationLayers, (L"Vulkan Validation Layers %1", msgTypeStr));
 					break;
 				}
 				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
@@ -2522,8 +2563,10 @@ namespace edo::rhi
 
 			return VK_FALSE;
 		}
+	#endif // EDO_RHI_DEBUG
 
 
+	#if EDO_CONFIG_DEBUG || EDO_CONFIG_RELDEBINFO
 		static PFN_vkSetDebugUtilsObjectNameEXT gSetDebugNameFunc = VK_NULL_HANDLE;
 
 		template <typename HandleT>
@@ -2572,7 +2615,28 @@ namespace edo::rhi
 			else
 				return VK_OBJECT_TYPE_UNKNOWN;
 		}
-	#endif // EDO_RHI_DEBUG
+
+		template <typename HandleT>
+		void SetDebugName(const Device& _device, HandleT _handle, const char* _name)
+		{
+			if (gSetDebugNameFunc)
+			{
+				const VkDebugUtilsObjectNameInfoEXT info{
+					.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+					.pNext = nullptr,
+					.objectType = intl::GetVkObjectTypeFromHandleT<HandleT>(),
+					.objectHandle = reinterpret_cast<uint64_t>(_handle),
+					.pObjectName = _name
+				};
+
+				gSetDebugNameFunc(_device.Get(), &info);
+			}
+		}
+
+		#define EDO_RHI_VKSetDebugName(_device, _handle, _name) intl::SetDebugName(_device, _handle, _name)
+	#else
+		#define EDO_RHI_VKSetDebugName(...) {}
+	#endif // EDO_RHI_DEBUG || EDO_CONFIG_RELDEBINFO
 	}
 
 	void Initialize()
@@ -2596,9 +2660,8 @@ namespace edo::rhi
 			.pApplicationInfo = &appInfo,
 			.enabledLayerCount = 0u,
 			.ppEnabledLayerNames = nullptr,
-			// TODO:
-			//.enabledExtensionCount = static_cast<uint32_t>(vkInstanceExts.size()),
-			//.ppEnabledExtensionNames = vkInstanceExts.data(),
+			.enabledExtensionCount = __edo_countof(intl::gInstanceExts),
+			.ppEnabledExtensionNames = intl::gInstanceExts,
 		};
 
 	#if EDO_CONFIG_DEBUG
@@ -2640,8 +2703,15 @@ namespace edo::rhi
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 			.pNext = nullptr,
 			.flags = 0u,
-			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT,
-			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_FLAG_BITS_MAX_ENUM_EXT,
+			.messageSeverity =
+				//VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+				//VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | // Too much logging on Resource create/destroy, EDO logging already tracking
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+			.messageType =
+				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
 			.pfnUserCallback = intl::ValidationLayersDebugCallback,
 			.pUserData = nullptr,
 		};
@@ -2677,11 +2747,16 @@ namespace edo::rhi
 			}
 		}
 
+	#endif // EDO_CONFIG_DEBUG
+
+	#if EDO_CONFIG_DEBUG || EDO_CONFIG_RELDEBINFO
 		// SetDebugName
 		{
 			intl::gSetDebugNameFunc = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(intl::gInstance, "vkSetDebugUtilsObjectNameEXT");
+
+			EDO_ERROR(intl::gSetDebugNameFunc, Edo.RHI.VK.Instance, L"SetDebugName function query failed and won't be available during execition.");
 		}
-	#endif // EDO_CONFIG_DEBUG
+	#endif // EDO_CONFIG_DEBUG || EDO_CONFIG_RELDEBINFO
 	}
 
 	void Shutdown()
@@ -2704,11 +2779,78 @@ namespace edo::rhi
 				EDO_LOG(L"Extension PFN_vkDestroyDebugUtilsMessengerEXT missing!", Warning, Edo.RHI.VK.Instance);
 			}
 		}
+
 	#endif
+
+	#if EDO_CONFIG_DEBUG || EDO_CONFIG_RELDEBINFO
+		intl::gSetDebugNameFunc = nullptr;
+	#endif // EDO_CONFIG_DEBUG || EDO_CONFIG_RELDEBINFO
 
 		vkDestroyInstance(intl::gInstance, nullptr);
 		EDO_LOG(L"Destroy Instance success", Verbose, Edo.RHI.VK.Instance, intl::gInstance);
 		intl::gInstance = VK_NULL_HANDLE;
+	}
+
+
+// ##############################################################
+// #						QUEUE								#
+// ##############################################################
+
+	namespace intl
+	{
+		void QueueFamilyIndices::ScoreQueue(uint32_t _queue, uint32_t& _gfxCount, uint32_t& _score) const
+		{
+			if (_queue != gfx)
+			{
+				_score += 100;
+			}
+			else
+			{
+				if (_gfxCount >= 1)
+				{
+					_score += 10;
+					--_gfxCount;
+				}
+			}
+		}
+
+		bool QueueFamilyIndices::ValidateAndScore(const std::vector<VkQueueFamilyProperties>& _famProps, uint32_t& _score) const
+		{
+			// Check all queues can be created
+			if (gfx == uint32_t(-1) || cmp == uint32_t(-1) || present == uint32_t(-1))
+				return false;
+
+			uint32_t gfxCount = _famProps[gfx].queueCount - 1;
+			ScoreQueue(cmp, gfxCount, _score);
+			ScoreQueue(present, gfxCount, _score);
+
+			return true;
+		}
+	}
+
+	void Queue::Create(const Device& _device, uint32_t _family, const std::string& _debugName)
+	{
+		vkGetDeviceQueue(_device.Get(), _family, 0, &mHandle);
+
+		std::string queueName = _debugName;
+#ifdef EDO_SH_DEBUG_GUARD
+		queueName = edo::ToString(edo::StringFormat("Edo_%1_Queue", _debugName));
+#endif // EDO_SH_DEBUG_GUARD
+		EDO_RHI_VKSetDebugName(_device, mHandle, queueName.c_str());
+
+		EDO_LOG((L"Create %1 Queue success.", _debugName), Verbose, Edo.RHI.VK.Queue, (L"\"%1\" [%2]", queueName, mHandle));
+	}
+
+	void Queue::Destroy(const Device& _device)
+	{
+		(void)_device;
+
+		EDO_LOG(L"Destroy Queue success", Verbose, Edo.RHI.VK.Queue, mHandle);
+		mHandle = VK_NULL_HANDLE;
+	}
+
+	void Queue::WaitForComplete()
+	{
 	}
 
 
@@ -2718,38 +2860,238 @@ namespace edo::rhi
 
 	namespace intl
 	{
-		template <typename HandleT>
-		void SetDebugName(const Device& _device, HandleT _handle, const char* name)
-		{
-#if EDO_CONFIG_DEBUG
-			if (gSetDebugNameFunc)
-			{
-				const VkDebugUtilsObjectNameInfoEXT info{
-					.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-					.pNext = nullptr,
-					.objectType = intl::GetVkObjectTypeFromHandleT<HandleT>(),
-					.objectHandle = reinterpret_cast<uint64_t>(_handle),
-					.pObjectName = name
-				};
+		static const char* gDeviceExts[]{
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		};
 
-				gSetDebugNameFunc(_device.Get(), &info);
+		bool ValidateAllDeviceExtensions(const std::vector<VkExtensionProperties>& _supportedExts)
+		{
+			for (uint32_t i = 0; i < __edo_countof(intl::gDeviceExts); ++i)
+			{
+				const char* const reqExt = intl::gDeviceExts[i];
+				bool bExtFound = false;
+
+				for (const auto& suppExt : _supportedExts)
+				{
+					// Extension found.
+					if (std::strcmp(reqExt, suppExt.extensionName) == 0)
+					{
+						bExtFound = true;
+						break;
+					}
+				}
+
+				if (!bExtFound)
+					return false;
 			}
-#endif // EDO_CONFIG_DEBUG
+
+			return true;
 		}
 	}
 
 	void Device::Create()
 	{
+		// Query physical devices
+		std::vector<VkPhysicalDevice> physicalDevices;
+		{
+			uint32_t deviceCount = 0;
+			const VkResult vrEnumPhysDeviceCount = vkEnumeratePhysicalDevices(intl::gInstance, &deviceCount, nullptr);
+			EDO_VK_ASSERT(vrEnumPhysDeviceCount, L"Enumerate Physical Devices Count failed!");
+			EDO_ASSERT(deviceCount != 0, Edo.RHI.VK.Device, L"No GPU with Vulkan support found!");
+
+			physicalDevices.resize(deviceCount);
+			const VkResult vrEnumPhysDevices = vkEnumeratePhysicalDevices(intl::gInstance, &deviceCount, physicalDevices.data());
+			EDO_VK_ASSERT(vrEnumPhysDevices, L"Enumerate Physical Devices failed!");
+		}
+
+		// Find suitable device
+		{
+			uint32_t selectedScore = 0u;
+
+			for (auto phDevice : physicalDevices)
+			{
+				uint32_t score = 0u;
+
+				VkPhysicalDeviceProperties props{};
+				vkGetPhysicalDeviceProperties(phDevice, &props);
+
+				switch (props.deviceType)
+				{
+				case VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+					score += 3000;
+					break;
+				case VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+					score += 2000;
+					break;
+				case VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+				case VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_CPU:
+					score += 1000;
+					break;
+				default:
+					break;
+				}
+
+
+				// Check extensions support
+				{
+					// Query extensions.
+					uint32_t extensionCount = 0u;
+					const VkResult vrEnumDeviceExtsCount = vkEnumerateDeviceExtensionProperties(phDevice, nullptr, &extensionCount, nullptr);
+					if (vrEnumDeviceExtsCount != VK_SUCCESS)
+					{
+						EDO_ERROR((L"Enumerate Devices [%1] extensions count failed!", phDevice), Edo.RHI.VK.Device, (L"Error Code: %1", vrEnumDeviceExtsCount));
+						continue;
+					}
+
+					std::vector<VkExtensionProperties> supportedExts(extensionCount);
+					const VkResult vrEnumDeviceExts = vkEnumerateDeviceExtensionProperties(phDevice, nullptr, &extensionCount, supportedExts.data());
+					if (vrEnumDeviceExts != VK_SUCCESS)
+					{
+						EDO_ERROR((L"Enumerate Devices [%1] extensions failed!", phDevice), Edo.RHI.VK.Device, (L"Error Code: %1", vrEnumDeviceExts));
+						continue;
+					}
+
+					if (!intl::ValidateAllDeviceExtensions(supportedExts))
+						continue;
+				}
+
+
+				// Find Queue Families
+				intl::QueueFamilyIndices quFamIdx{};
+				{
+					uint32_t vkQFPCount = 0;
+					vkGetPhysicalDeviceQueueFamilyProperties(phDevice, &vkQFPCount, nullptr);
+
+					std::vector<VkQueueFamilyProperties> vkQuFamProps(vkQFPCount);
+					vkGetPhysicalDeviceQueueFamilyProperties(phDevice, &vkQFPCount, vkQuFamProps.data());
+
+					for (uint32_t i = 0; i < vkQFPCount; ++i)
+					{
+						const auto& vkQuFamProp = vkQuFamProps[i];
+
+						if ((vkQuFamProp.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (quFamIdx.gfx == uint32_t(-1) || quFamIdx.cmp == quFamIdx.gfx))
+							quFamIdx.gfx = i;
+
+						if ((vkQuFamProp.queueFlags & VK_QUEUE_COMPUTE_BIT) && (quFamIdx.cmp == uint32_t(-1) || quFamIdx.cmp == quFamIdx.gfx))
+							quFamIdx.cmp = i;
+
+						if (quFamIdx.present == uint32_t(-1) || quFamIdx.present == quFamIdx.gfx)
+						{
+							VkBool32 presentSupport = false;
+							const VkResult vrSupportKHR = vkGetPhysicalDeviceSurfaceSupportKHR(phDevice, i, windowSurface, &presentSupport);
+							if (vrSupportKHR != VK_SUCCESS)
+							{
+								EDO_LOG(L"Physical Device Surface Support failed.", Error, Edo.RHI.VK.Device, (L"Error Code: %1", vrSupportKHR));
+								continue;
+							}
+
+							if (presentSupport)
+								quFamIdx.present = i;
+						}
+					}
+
+					if (!quFamIdx.ValidateAndScore(vkQuFamProps, score))
+						continue;
+				}
+
+
+				// Scoring
+				if (score > selectedScore)
+				{
+					selectedScore = score;
+					mPhysicalDevice = phDevice;
+					mQuFamIdx = quFamIdx;
+				}
+			}
+		}
+
+		EDO_ASSERT(mPhysicalDevice != VK_NULL_HANDLE, Edo.RHI.VK.Device, L"No suitable PhysicalDevice found.");
+		EDO_LOG(L"Create Physical Device success", Verbose, Edo.RHI.VK.Device, mPhysicalDevice);
+
+		// Create Logical Device.
+		{
+			const VkPhysicalDeviceFeatures deviceFeatures{};
+
+			const float queuePriority = 1.0f;
+			const std::array<VkDeviceQueueCreateInfo, 3> queueCreateInfo{
+				VkDeviceQueueCreateInfo{
+					.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+					.pNext = nullptr,
+					.flags = 0,
+					.queueFamilyIndex = mQuFamIdx.gfx,
+					.queueCount = 1,
+					.pQueuePriorities = &queuePriority,
+				},
+				VkDeviceQueueCreateInfo{
+					.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+					.pNext = nullptr,
+					.flags = 0,
+					.queueFamilyIndex = mQuFamIdx.cmp,
+					.queueCount = 1,
+					.pQueuePriorities = &queuePriority,
+				},
+				VkDeviceQueueCreateInfo{
+					.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+					.pNext = nullptr,
+					.flags = 0,
+					.queueFamilyIndex = mQuFamIdx.present,
+					.queueCount = 1,
+					.pQueuePriorities = &queuePriority,
+				}
+			};
+
+			VkDeviceCreateInfo deviceCreateInfo{
+				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0,
+				.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfo.size()),
+				.pQueueCreateInfos = queueCreateInfo.data(),
+				.enabledLayerCount = 0,
+				.ppEnabledLayerNames = nullptr,
+				.enabledExtensionCount = __edo_countof(intl::gDeviceExts),
+				.ppEnabledExtensionNames = intl::gDeviceExts,
+				.pEnabledFeatures = &deviceFeatures,
+			};
+
+		#if EDO_CONFIG_DEBUG
+			deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(intl::gValidationLayers.size());
+			deviceCreateInfo.ppEnabledLayerNames = intl::gValidationLayers.data();
+		#endif
+
+			const VkResult vrDeviceCreated = vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mHandle);
+			EDO_VK_ASSERT(vrDeviceCreated, L"Create Logical Device failed.");
+
+
+			//vkGetDeviceQueue(device, deviceQueueFamilyIndices.graphicsFamily, 0, &graphicsQueue);
+			//EDO_LOG(L"Create Graphics Queue success.", Info, VK, graphicsQueue);
+
+			////vkGetDeviceQueue(device, deviceQueueFamilyIndices.computeFamily, 0, &computeQueue);
+			////EDO_LOG(L"Create Compute Queue success.", Info, VK, computeQueue);
+
+			//vkGetDeviceQueue(device, deviceQueueFamilyIndices.presentFamily, 0, &presentQueue);
+			//EDO_LOG(L"Create Present Queue success.", Info, VK, presentQueue);
+		}
 	}
 
 	void Device::Destroy()
 	{
+		gfxQueue.Destroy(*this);
+		cmpQueue.Destroy(*this);
+		presentQueue.Destroy(*this);
+
+		vkDestroyDevice(mHandle, nullptr);
+		EDO_LOG(L"Destroy Logical Device success", Verbose, Edo.RHI.VK.Device, mHandle);
+		mHandle = VK_NULL_HANDLE;
+
+		EDO_LOG(L"Destroy Physical Device success", Verbose, Edo.RHI.VK.Device, mPhysicalDevice);
+		mPhysicalDevice = VK_NULL_HANDLE;
 	}
 
 	void Device::WaitIdle()
 	{
 		vkDeviceWaitIdle(mHandle);
 	}
+
 
 // ##############################################################
 // #						SURFACE								#
@@ -2812,7 +3154,7 @@ namespace edo::rhi
 	{
 		VkSurfaceKHR surfaceKHR = VK_NULL_HANDLE;
 
-		const bool res = mHandle.createVulkanSurface(intl::gInstance, surfaceKHR);
+		const bool res = const_cast<sf::Window&>(mHandle).createVulkanSurface(intl::gInstance, surfaceKHR);
 		EDO_ASSERT(res, Edo.RHI.Surface.SFML, L"Create Window Surface failed!");
 
 		return surfaceKHR;
@@ -2897,7 +3239,24 @@ namespace edo::rhi
 
 	void Swapchain::Present(const Device& _device)
 	{
+		(void)_device;
 	}
+
+
+	// ##############################################################
+	// #						COMMAND								#
+	// ##############################################################
+
+	void CommandList::Create(const Device& _device)
+	{
+		(void)_device;
+	}
+
+	void CommandList::Destroy(const Device& _device)
+	{
+		(void)_device;
+	}
+
 
 // ##############################################################
 // #						PIPELINE							#
@@ -3159,8 +3518,9 @@ namespace edo::rhi
 // #						BUFFER								#
 // ##############################################################
 
-	void Buffer::Create(const Device& _device, const BufferDesc& _desc)
+	void Buffer::Create(const Device& _device, const BufferDesc& _desc, const void* _data)
 	{
+		(void)_data;
 		EDO_ERROR(!mHandle, Edo.RHI.VK.Buffer, "Try create on non-null Buffer");
 		EDO_ERROR(!mMemory, Edo.RHI.VK.Buffer, "Try create on non-null Buffer");
 
@@ -3185,7 +3545,7 @@ namespace edo::rhi
 
 		// Memory
 		{
-			VkMemoryRequirements memRequirements;
+			VkMemoryRequirements memRequirements{};
 			//vkGetBufferMemoryRequirements(device, pointLightBuffer, &memRequirements);
 
 			const VkMemoryAllocateInfo allocInfo{
@@ -3246,8 +3606,9 @@ namespace edo::rhi
 // #						TEXTURE								#
 // ##############################################################
 
-	void Texture::Create(const Device& _device, const TextureDesc& _desc)
+	void Texture::Create(const Device& _device, const TextureDesc& _desc, const void* _data)
 	{
+		(void)_data;
 		EDO_ERROR(!mHandle, Edo.RHI.VK.Texture, "Try create on non-null Texture");
 		EDO_ERROR(!mMemory, Edo.RHI.VK.Texture, "Try create on non-null Texture");
 
@@ -3283,7 +3644,7 @@ namespace edo::rhi
 
 		// ImageMemory
 		{
-			VkMemoryRequirements memRequirements;
+			VkMemoryRequirements memRequirements{};
 			//vkGetImageMemoryRequirements(device, rustedIron2AlbedoImage, &memRequirements);
 
 			const VkMemoryAllocateInfo allocInfo{

@@ -9,7 +9,7 @@ namespace edo::UT::RHI
 {
 	void RenderTestBase::InitLogger()
 	{
-		//edo::Debug::logger->EnableLevel(edo::LogLevel::Verbose);
+		edo::Debug::logger->EnableLevel(edo::LogLevel::Verbose);
 	}
 
 	void RenderTestBase::InitRenderBase()
