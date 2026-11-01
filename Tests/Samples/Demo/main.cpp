@@ -60,11 +60,12 @@ int main()
 		{
 			rhi::Initialize();
 
-			device.Create();
+			rhi::GLFWSurfaceHandle surfaceHandle(window);
+			device.Create(&surfaceHandle);
 
 			rhi::SwapchainDesc scDesc{
 				.bufferingCount = bufferingCount,
-				.surface = rhi::GLFWSurfaceHandle(window)
+				.surface = surfaceHandle
 			};
 			swapchain.Create(device, scDesc);
 

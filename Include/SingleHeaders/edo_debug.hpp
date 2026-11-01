@@ -397,10 +397,19 @@ namespace edo
 			return count;
 		}
 
-		template <typename FirstT, typename... Args>
-		void StringFormatImpl(std::wstring& _str, uint32_t _depth, FirstT&& _first, Args&&... _args)
+		template <typename StringT, typename FirstT, typename... Args>
+		void StringFormatImpl(StringT& _str, uint32_t _depth, FirstT&& _first, Args&&... _args)
 		{
-			const uint32_t count = intl::ReplaceAllInString(_str, L'%' + std::to_wstring(_depth), ToWString(_first));
+			uint32_t count = 0;
+
+			if constexpr (std::is_same_v<StringT, std::wstring>)
+			{
+				count = intl::ReplaceAllInString(_str, L'%' + std::to_wstring(_depth), ToWString(_first));
+			}
+			else if (std::is_same_v<StringT, std::string>)
+			{
+				count = intl::ReplaceAllInString(_str, '%' + std::to_string(_depth), ToString(_first));
+			}
 
 			// No more args to parse.
 			// Must be constexpr for valid recursive compilation.
@@ -418,7 +427,20 @@ namespace edo
 	}
 
 	template <typename FirstT, typename... Args>
-	std::wstring StringFormat(FirstT _first, Args&&... _args)
+	std::string StringFormat(FirstT _first, Args&&... _args)
+	{
+		// Force convert to string. Input might be string or any object.
+		std::string str = ToString(std::forward<FirstT>(_first));
+
+		// Arguments means string formatting.
+		if constexpr (sizeof...(Args) != 0)
+			intl::StringFormatImpl(str, 1u, std::forward<Args>(_args)...);
+
+		return str;
+	}
+
+	template <typename FirstT, typename... Args>
+	std::wstring WStringFormat(FirstT _first, Args&&... _args)
 	{
 		// Force convert to wstring. Input might be string or any object.
 		std::wstring str = ToWString(std::forward<FirstT>(_first));
@@ -1816,10 +1838,10 @@ namespace edo
 
 	#define __EDO_CREATE_LOG(_str, _lvl, _chan, _dets) edo::Log(\
 		std::source_location::current(),\
-		edo::StringFormat(__EDO_UNPARENT(_str)),\
+		edo::WStringFormat(__EDO_UNPARENT(_str)),\
 		edo::LogLevel::_lvl,\
 		EDO_WSTR(_chan),\
-		edo::StringFormat(__EDO_UNPARENT(_dets)),\
+		edo::WStringFormat(__EDO_UNPARENT(_dets)),\
 		__EDO_LOG_FRAME_NUM,\
 		std::string()\
 	)

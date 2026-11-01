@@ -14,19 +14,21 @@ namespace edo::UT::RHI
 
 	void RenderTestBase::InitRenderBase()
 	{
-		rhi::Initialize();
+	#if EDO_RHI_GLFW
+			rhi::GLFWSurfaceHandle surface(winHelper.window);
+	#elif EDO_RHI_SFML
+			rhi::SFMLSurfaceHandle surface(winHelper.window);
+	#elif EDO_RHI_SDL3
+			rhi::SDL3SurfaceHandle surface(winHelper.window);
+	#endif
 
-		device.Create();
+		rhi::Initialize(&surface);
+
+		device.Create(&surface);
 
 		rhi::SwapchainDesc scDesc{
 			.bufferingCount = bufferingCount,
-	#if EDO_RHI_GLFW
-			.surface = rhi::GLFWSurfaceHandle(winHelper.window)
-	#elif EDO_RHI_SFML
-			.surface = rhi::SFMLSurfaceHandle(winHelper.window)
-	#elif EDO_RHI_SDL3
-			.surface = rhi::SDL3SurfaceHandle(winHelper.window)
-	#endif
+			.surface = surface
 
 		};
 		swapchain.Create(device, scDesc);
