@@ -366,6 +366,8 @@ namespace edo::rhi
 	class ISurfaceHandle
 	{
 	public:
+		virtual ~ISurfaceHandle() = default;
+
 		/**
 		* Checks current handle valid state
 		*/
@@ -423,7 +425,7 @@ namespace edo::rhi
 		inline void GetRenderSize(uint32_t& _width, uint32_t& _height) override final
 		{
 			int width, height;
-			const bool bRes = SDL_GetWindowSizeInPixels(nullptr, &width, &height);
+			const bool bRes = SDL_GetWindowSizeInPixels(mHandle, &width, &height);
 
 			if (bRes)
 			{

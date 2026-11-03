@@ -7,45 +7,33 @@
 
 namespace edo::UT::RHI
 {
-	void RenderTestBase::InitLogger()
+	void RenderTestBase::InitAPI(rhi::ISurfaceHandle* _surface)
 	{
-		edo::Debug::logger->EnableLevel(edo::LogLevel::Verbose);
+		rhi::Initialize(_surface);
 	}
 
-	void RenderTestBase::InitRenderBase()
+	void RenderTestBase::CreateDevice(rhi::ISurfaceHandle* _surface)
 	{
-	#if EDO_RHI_GLFW
-			rhi::GLFWSurfaceHandle surface(winHelper.window);
-	#elif EDO_RHI_SFML
-			rhi::SFMLSurfaceHandle surface(winHelper.window);
-	#elif EDO_RHI_SDL3
-			rhi::SDL3SurfaceHandle surface(winHelper.window);
-	#endif
+		device.Create(_surface);
+	}
 
-		rhi::Initialize(&surface);
-
-		device.Create(&surface);
-
+	void RenderTestBase::CreateSwapchain(rhi::ISurfaceHandle* _surface)
+	{
 		rhi::SwapchainDesc scDesc{
 			.bufferingCount = bufferingCount,
-			.surface = surface
-
+			.surface = *_surface
 		};
-		swapchain.Create(device, scDesc);
 
-		for (uint32_t i = 0; i < bufferingCount; ++i)
-		{
-			cmdLists[i] = device.CreateCommandList();
-		}
+		swapchain.Create(device, scDesc);
 	}
 
 
-	void RenderTestBase::Loop()
+	void RenderTestBase::LoopMain()
 	{
 		float accumulateTime = 0.0f;
 		auto start = std::chrono::steady_clock::now();
 
-	#if !defined(EDO_CI_CD)
+	#if !defined(EDO_CI)
 		while (winHelper.IsOpen())
 	#endif
 		{
@@ -54,9 +42,9 @@ namespace edo::UT::RHI
 			accumulateTime += deltaTime;
 			start = end;
 
-	#if defined(EDO_CI_CD)
+	#if defined(EDO_CI)
 			accumulateTime = fixedTime;
-	#endif
+	#endif // defined(EDO_CI)
 
 			// Fixed Update
 			if (accumulateTime >= fixedTime)
@@ -66,25 +54,29 @@ namespace edo::UT::RHI
 				winHelper.ProcessEvents();
 			}
 			
-			LoopRender_Impl();
+			LoopRender();
 
+	#if !defined(EDO_CI)
 			swapchain.Present(device);
+	#endif // !defined(EDO_CI)
 		}
+
+		device.WaitIdle();
 	}
 
 
-	void RenderTestBase::ShutdownRenderBase()
+	void RenderTestBase::DestroySwapchain()
 	{
-		device.WaitIdle();
-
-		for (uint32_t i = 0; i < bufferingCount; ++i)
-		{
-			device.DestroyCommandList(cmdLists[i]);
-		}
-
 		swapchain.Destroy(device);
-		device.Destroy();
+	}
 
+	void RenderTestBase::DestroyDevice()
+	{
+		device.Destroy();
+	}
+
+	void RenderTestBase::ShutdownAPI()
+	{
 		rhi::Shutdown();
 	}
 }

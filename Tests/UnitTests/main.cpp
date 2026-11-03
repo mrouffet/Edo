@@ -8,6 +8,7 @@
 int main(int argc, char** argv)
 {
 	edo::Debug::InitDefaultLogger();
+	edo::Debug::logger->EnableLevel(edo::LogLevel::Verbose);
 
 	::testing::InitGoogleTest(&argc, argv);
 

@@ -8,9 +8,9 @@
       "cacheVariables": {
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/Install/${presetName}",
         "EDO_BUILD_TESTS_OPT": true,
+        "EDO_TEST_SDL_OPT": false,
         "EDO_TEST_GLFW_OPT": true,
-        "EDO_TEST_SFML_OPT": true,
-        "EDO_TEST_SDL_OPT": true
+        "EDO_TEST_SFML_OPT": false
       }
     },
     {

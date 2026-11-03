@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Maxime "mrouffet" ROUFFET. All Rights Reserved.
 
+#define EDO_RHI_UT_TEST_ID 1
+
 #include "RenderTestBase.hpp"
 
 namespace edo::UT::RHI
@@ -10,22 +12,22 @@ namespace edo::UT::RHI
 		rhi::Shader pixelSH;
 
 	public:
-		void InitRender_Impl() override final
+		void InitRender() override final
 		{
 			vertexSH = rhi::Shader::CompileFromSource(device, { L"Resources/Shaders/Passes/HelloTriangle.hlsl", L"mainVS", L"vs_6_5" });
 			pixelSH = rhi::Shader::CompileFromSource(device, { L"Resources/Shaders/Passes/HelloTriangle.hlsl", L"mainPS", L"ps_6_5" });
 		}
 
-		void LoopRender_Impl() override final
+		void LoopRender() override final
 		{
 		}
 
-		void ShutdownRender_Impl() override final
+		void ShutdownRender() override final
 		{
 			pixelSH.Destroy(device);
 			vertexSH.Destroy(device);
 		}
 	};
 
-	EDO_RENDER_TEST(HelloTriangleTest, 1_HelloTriangle)
+	EDO_RENDER_TEST(HelloTriangleTest)
 }

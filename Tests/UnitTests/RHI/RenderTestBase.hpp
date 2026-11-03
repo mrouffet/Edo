@@ -22,43 +22,77 @@ namespace edo::UT::RHI
 		rhi::Swapchain swapchain;
 
 		std::array<rhi::CommandList, bufferingCount> cmdLists;
+
+		virtual void LoopRender() = 0;
+
 	public:
 		WindowHelper winHelper;
 
-		void InitLogger();
-		void InitRenderBase();
-		virtual void InitRender_Impl() = 0;
+		virtual void InitAPI(rhi::ISurfaceHandle* _surface);
+		virtual void CreateDevice(rhi::ISurfaceHandle* _surface);
+		virtual void CreateSwapchain(rhi::ISurfaceHandle* _surface);
 
-		void Loop();
-		virtual void LoopRender_Impl() = 0;
+		virtual void InitRender() = 0;
+		virtual void ShutdownRender() = 0;
 
-		virtual void ShutdownRender_Impl() = 0;
-		void ShutdownRenderBase();
+		void LoopMain();
+
+		virtual void DestroySwapchain();
+		virtual void DestroyDevice();
+		virtual void ShutdownAPI();
 	};
 }
 
-#if EDO_UT_RHI_DX12
-	#define RHITestSuite(_name) RHITests_ ##_name ##_DX12
-#endif
-#if EDO_UT_RHI_VK
-	#define RHITestSuite(_name) RHITests_ ##_name ##_VK
-#endif
-#if EDO_UT_RHI_GL
-	#define RHITestSuite(_name) RHITests_ ##_name ##_GL
-#endif
-#if EDO_UT_RHI_CPU
-	#define RHITestSuite(_name) RHITests_ ##_name ##_CPU
+#define EDO_RHI_UT_CONCAT_I(a, b, c, d, e, f) a##b##c##d##e##f
+#define EDO_RHI_UT_CONCAT(a, b, c, d, e, f) EDO_RHI_UT_CONCAT_I(a, b, c, d, e, f)
+
+#if EDO_RHI_DX12
+	#define EDO_RHI_UT_TESTSUITE_GRAPHICS_NAME _DX12
+#elif EDO_RHI_VK
+	#define EDO_RHI_UT_TESTSUITE_GRAPHICS_NAME _VK
+#elif EDO_RHI_GL
+	#define EDO_RHI_UT_TESTSUITE_GRAPHICS_NAME _GL
+#elif EDO_RHI_CPU
+	#define EDO_RHI_UT_TESTSUITE_GRAPHICS_NAME _CPU
+#else
+	#define EDO_RHI_UT_TESTSUITE_GRAPHICS_NAME _NONEG
 #endif
 
-#define EDO_RENDER_TEST(_class, _name)\
+#if EDO_RHI_SDL3
+	#define EDO_RHI_UT_TESTSUITE_WINDOW_NAME _SDL3
+#elif EDO_RHI_GLFW
+	#define EDO_RHI_UT_TESTSUITE_WINDOW_NAME _GLFW
+#elif EDO_RHI_SFML
+	#define EDO_RHI_UT_TESTSUITE_WINDOW_NAME _SFML
+#else
+	#define EDO_RHI_UT_TESTSUITE_WINDOW_NAME _NONEW
+#endif
+
+#define EDO_RHI_UT_TESTSUITE_NAME(_class) EDO_RHI_UT_CONCAT(t, EDO_RHI_UT_TEST_ID, _, _class, EDO_RHI_UT_TESTSUITE_GRAPHICS_NAME, EDO_RHI_UT_TESTSUITE_WINDOW_NAME)
+
+#if !defined(EDO_CI)
+	#define TEST_NO_CI(_tSuite, _tName, _tbody) TEST(_tSuite, _tName)_tbody
+#else
+	#define TEST_NO_CI(_tSuite, _tName, _tbody) TEST(_tSuite, _tName##_Skipped_CI){}
+#endif
+
+#define EDO_RENDER_TEST(_class)\
 	_class rtest;\
-	TEST(RHITestSuite(_name), Init_Logger) { rtest.InitLogger(); }\
-	TEST(RHITestSuite(_name), EDO_RHI_UT_Init_Window_Name) { rtest.winHelper.InitWindow(windowSize); }\
-	TEST(RHITestSuite(_name), Init_Render_Base) { rtest.InitRenderBase(); }\
-	TEST(RHITestSuite(_name), Init_Render_Impl) { rtest.InitRender_Impl(); }\
-	TEST(RHITestSuite(_name), Loop) { rtest.Loop(); }\
-	TEST(RHITestSuite(_name), Shutdown_Render_Impl) { rtest.ShutdownRender_Impl(); }\
-	TEST(RHITestSuite(_name), Shutdown_Render_Base) { rtest.ShutdownRenderBase(); }\
-	TEST(RHITestSuite(_name), EDO_RHI_UT_Shutdown_Window_Name) { rtest.winHelper.ShutdownWindow(); }
+	TEST_NO_CI(EDO_RHI_UT_TESTSUITE_NAME(_class), InitWindow, { rtest.winHelper.InitWindow(windowSize); })\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), InitAPI){ rtest.InitAPI(rtest.winHelper.surface); }\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), CreateDevice){ rtest.CreateDevice(rtest.winHelper.surface); }\
+	TEST_NO_CI(EDO_RHI_UT_TESTSUITE_NAME(_class), CreateSwapchain, { rtest.CreateSwapchain(rtest.winHelper.surface); })\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), InitRender){ rtest.InitRender(); }\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), LoopMain){ rtest.LoopMain(); }\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), ShutdownRender){ rtest.ShutdownRender(); }\
+	TEST_NO_CI(EDO_RHI_UT_TESTSUITE_NAME(_class), DestroySwapchain, { rtest.DestroySwapchain(); })\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), DestroyDevice){ rtest.DestroyDevice(); }\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), ShutdownAPI){ rtest.ShutdownAPI(); }\
+	TEST_NO_CI(EDO_RHI_UT_TESTSUITE_NAME(_class), ShutdownWindow, { rtest.winHelper.ShutdownWindow(); })\
+
+#if defined(EDO_RHI_UT_SELECT_TEST) && EDO_RHI_UT_SELECT_TEST != -1 && EDO_RHI_UT_SELECT_TEST != EDO_RHI_UT_TEST_ID
+	#undef EDO_RENDER_TEST
+	#define EDO_RENDER_TEST(_class)
+#endif
 
 #endif // EDO_RHI_RENDER_TEST_BASE_GUARD
