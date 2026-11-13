@@ -1676,7 +1676,7 @@ namespace edo
 	{
 		/**
 		* \brief Current registered frame number.
-		* Use IncrementFrameNum() or SA_LOG_END_OF_FRAME() at the end of the frame to track frame number.
+		* Use IncrementFrameNum() or EDO_LOG_END_OF_FRAME() at the end of the frame to track frame number.
 		*/
 		uint32_t mFrameNum = 0u;
 
