@@ -147,6 +147,13 @@ namespace edo::rhi
 
 #endif // EDO_RHI_VK
 
+
+#if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
+	#define EDO_RHI_PLTF_WIN 1
+#else
+	#define EDO_RHI_PLTF_WIN 0
+#endif
+
 #ifndef __edo_countof
 #define __edo_countof(_arr) sizeof(_arr) / sizeof(_arr[0])
 #endif
@@ -225,7 +232,12 @@ namespace edo::rhi
 // #						INSTANCE							#
 // ##############################################################
 
-	void Initialize(ISurfaceHandle* _surface = nullptr);
+	struct APIOptions
+	{
+		bool bForceOffScreenRenderingOnly = false;
+	};
+
+	void Initialize(const APIOptions& _opts = APIOptions());
 	void Shutdown();
 
 
@@ -392,11 +404,6 @@ namespace edo::rhi
 		* /!\ \b Ownership of the created VkSurfaceKHR belongs to the \b Swapchain, not the SurfaceHandle /!\ 
 		*/
 		virtual VkSurfaceKHR CreateVkSurfaceKHR() = 0;
-
-		/**
-		* \brief Query VkInstance extensions required for present support on window.
-		*/
-		virtual inline void QueryVkInstanceExtensions(std::vector<const char*>& _vkInstExts) { (void)_vkInstExts; }
 #endif // EDO_RHI_VK
 	};
 
@@ -490,7 +497,6 @@ namespace edo::rhi
 
 #if EDO_RHI_VK
 		VkSurfaceKHR CreateVkSurfaceKHR() override final;
-		void QueryVkInstanceExtensions(std::vector<const char*>& _vkInstExts) override final;
 #endif // EDO_RHI_VK
 	};
 #endif // EDO_RHI_GLFW
@@ -866,6 +872,16 @@ namespace edo::rhi
 			static_cast<uint8_t>(_format) <= static_cast<uint8_t>(Format::D32S8);
 	}
 
+
+// ##############################################################
+// #						INSTANCE							#
+// ##############################################################
+
+	namespace intl
+	{
+		static APIOptions gOptions;
+	}
+
 // ##############################################################
 // #						DEVICE								#
 // ##############################################################
@@ -1109,9 +1125,9 @@ namespace edo::rhi
 		static MComPtr<IDxcCompiler3> gShaderCompiler = nullptr;
 	}
 
-	void Initialize(ISurfaceHandle* _surface)
+	void Initialize(const APIOptions& _opts)
 	{
-		(void)_surface;
+		intl::gOptions = _opts;
 
 		// Instance
 		{
@@ -2496,7 +2512,7 @@ namespace edo::rhi
 		static VkInstance gInstance = VK_NULL_HANDLE;
 		static VkDebugUtilsMessengerEXT gDebugMessenger = VK_NULL_HANDLE;
 
-		static const char* gInstanceExtsBase[]{
+		//static const char* gInstanceExtsBase[]{
 			//VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
 			//VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
 			//VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
@@ -2506,11 +2522,7 @@ namespace edo::rhi
 			//VK_KHR_MAP_MEMORY_2_EXTENSION_NAME,
 			//VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 			//VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME,
-
-	#if EDO_CONFIG_DEBUG
-			VK_EXT_DEBUG_UTILS_EXTENSION_NAME
-	#endif
-		};
+		//};
 
 	#if EDO_CONFIG_DEBUG
 		static std::array<const char*, 1> gValidationLayers{
@@ -2663,19 +2675,29 @@ namespace edo::rhi
 	#endif // EDO_RHI_DEBUG || EDO_CONFIG_RELDEBINFO
 	}
 
-	void Initialize(ISurfaceHandle* _surface)
+	void Initialize(const APIOptions& _opts)
 	{
 		EDO_ERROR(!intl::gInstance, Edo.RHI.VK.Instance, L"Try initializing already initialized API!");
 
-		// Query required device extension
+		intl::gOptions = _opts;
+
+		// Query required extension
 		std::vector<const char*> instanceExts;
 		{
-			instanceExts.assign(intl::gInstanceExtsBase, intl::gInstanceExtsBase + __edo_countof(intl::gInstanceExtsBase));
+			//instanceExts.assign(intl::gInstanceExtsBase, intl::gInstanceExtsBase + __edo_countof(intl::gInstanceExtsBase));
 
-			if (_surface)
+			if (!_opts.bForceOffScreenRendering)
 			{
-				_surface->QueryVkInstanceExtensions(instanceExts);
+				instanceExts.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+
+			#if EDO_RHI_PLTF_WIN
+				instanceExts.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+			#endif
 			}
+
+		#if EDO_CONFIG_DEBUG
+			instanceExts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+		#endif
 		}
 
 		const VkApplicationInfo appInfo{
@@ -3202,17 +3224,6 @@ namespace edo::rhi
 		EDO_LOG("Create Window Surface success.", Verbose, Edo.RHI.Surface.GLFW, surfaceKHR);
 
 		return surfaceKHR;
-	}
-
-	void GLFWSurfaceHandle::QueryVkInstanceExtensions(std::vector<const char*>& _vkInstExts)
-	{
-		uint32_t glfwExtensionCount = 0;
-		const char** glfwExtensions = nullptr;
-
-		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-		_vkInstExts.reserve(glfwExtensionCount);
-		_vkInstExts.insert(_vkInstExts.end(), glfwExtensions, glfwExtensions + glfwExtensionCount);
 	}
 #endif // EDO_RHI_GLFW
 

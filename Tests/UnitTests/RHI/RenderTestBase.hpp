@@ -28,7 +28,7 @@ namespace edo::UT::RHI
 	public:
 		WindowHelper winHelper;
 
-		virtual void InitAPI(rhi::ISurfaceHandle* _surface);
+		virtual void InitAPI();
 		virtual void CreateDevice(rhi::ISurfaceHandle* _surface);
 		virtual void CreateSwapchain(rhi::ISurfaceHandle* _surface);
 
@@ -79,7 +79,7 @@ namespace edo::UT::RHI
 #define EDO_RENDER_TEST(_class)\
 	_class rtest;\
 	TEST_NO_CI(EDO_RHI_UT_TESTSUITE_NAME(_class), InitWindow, { rtest.winHelper.InitWindow(windowSize); })\
-	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), InitAPI){ rtest.InitAPI(rtest.winHelper.surface); }\
+	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), InitAPI){ rtest.InitAPI(); }\
 	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), CreateDevice){ rtest.CreateDevice(rtest.winHelper.surface); }\
 	TEST_NO_CI(EDO_RHI_UT_TESTSUITE_NAME(_class), CreateSwapchain, { rtest.CreateSwapchain(rtest.winHelper.surface); })\
 	TEST(EDO_RHI_UT_TESTSUITE_NAME(_class), InitRender){ rtest.InitRender(); }\

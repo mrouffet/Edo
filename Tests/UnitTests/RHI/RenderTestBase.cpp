@@ -7,9 +7,15 @@
 
 namespace edo::UT::RHI
 {
-	void RenderTestBase::InitAPI(rhi::ISurfaceHandle* _surface)
+	void RenderTestBase::InitAPI()
 	{
-		rhi::Initialize(_surface);
+		rhi::APIOptions options{};
+
+	#if defined(EDO_CI)
+		options.bForceOffScreenRenderingOnly = true;
+	#endif // defined(EDO_CI)
+
+		rhi::Initialize(options);
 	}
 
 	void RenderTestBase::CreateDevice(rhi::ISurfaceHandle* _surface)
