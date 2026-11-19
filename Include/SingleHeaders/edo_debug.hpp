@@ -15,7 +15,6 @@
 #include <filesystem>
 #include <unordered_map>
 #include <source_location>
-//#include <debugging>
 
 #if !defined(NDEBUG) || defined(_DEBUG)
 	/// Edo Debug preprocessor.
@@ -43,12 +42,8 @@
 
 namespace edo
 {
-// ##############################################################################################################################
-// #													TYPES																	#
-// ##############################################################################################################################
-
 // ##############################################################
-// #					TO-STRING								#
+// #					STRING FORMATTING						#
 // ##############################################################
 
 //{ ToString
@@ -176,47 +171,6 @@ namespace edo
 		return ToString(_vec.data(), _vec.size());
 	}
 
-#if EDO_DEBUG_IMPLEMENTATION
-
-	namespace intl
-	{
-		std::string ToStringBinary(const char* _data, uint64_t _size) noexcept
-		{
-			static constexpr char table[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-
-			std::string res;
-
-			res.reserve(3 * _size + 1);
-
-			res += '<';
-
-			for (const char* it = _data + _size - 1; it >= _data; --it)
-			{
-				res += table[(*it & 0xF0) >> 4];
-				res += table[*it & 0x0F];
-
-				res += '-';
-			}
-
-			res.back() = '>';
-
-			return res;
-		}
-	}
-
-	std::string ToString(const tm& _tm)
-	{
-		return
-			std::to_string(_tm.tm_mday) + '.' +
-			std::to_string(_tm.tm_mon + 1) + '.' +		// January is month 1.
-			std::to_string(_tm.tm_year + 1900) + '-' +	// tm_year is the year since 1900.
-			std::to_string(_tm.tm_hour) + 'h' +
-			std::to_string(_tm.tm_min) + 'm' +
-			std::to_string(_tm.tm_sec) + 's';
-	}
-
-#endif // EDO_DEBUG_IMPLEMENTATION
-
 //}
 
 
@@ -336,46 +290,6 @@ namespace edo
 		return ToWString(_vec.data(), _vec.size());
 	}
 
-#if EDO_DEBUG_IMPLEMENTATION
-
-	namespace intl
-	{
-		std::wstring ConvertCStringToWString(const char* _cstr, uint64_t _size)
-		{
-		#if EDO_DEBUG_PLTF_WIN
-
-			// strlen does not count '\0'
-			const uint64_t srcByteSize = (_size != uint64_t(-1) ? _size : strlen(_cstr)) * sizeof(char);
-
-			if (srcByteSize == 0)
-				return std::wstring();
-
-			// Compute converted size.
-			const int wsize = MultiByteToWideChar(CP_UTF8, 0, _cstr, static_cast<int>(srcByteSize), nullptr, 0);
-
-			std::wstring out;
-			out.resize(wsize);
-
-			// Convert.
-			const int res = MultiByteToWideChar(CP_UTF8, 0, _cstr, static_cast<int>(srcByteSize), out.data(), wsize);
-			(void)res;
-
-			#if EDO_CONFIG_DEBUG
-
-				// Function failed.
-				if (res == 0)
-					return std::wstring(L"Invalid ToWString conversion. Error code [" + std::to_wstring(GetLastError()) + L"]");
-
-			#endif
-
-			return out;
-
-		#endif // EDO_DEBUG_PLTF_WIN
-		}
-	}
-
-#endif // EDO_DEBUG_IMPLEMENTATION
-
 //}
 
 
@@ -454,8 +368,6 @@ namespace edo
 
 //}
 
-// ##############################################################
-
 
 // ##############################################################
 // #					LOG LEVEL								#
@@ -493,67 +405,6 @@ namespace edo
 
 	/// Shortcut alias.
 	using LogLvl = LogLevel;
-
-#if EDO_DEBUG_IMPLEMENTATION
-
-	namespace intl
-	{
-		uint32_t ScanLogLevel(LogLevel _lvl)
-		{
-			const uint32_t ulvl = static_cast<uint32_t>(_lvl);
-
-			unsigned long index = 0u;
-
-		#if _MSC_VER
-
-			_BitScanForward64(&index, ulvl);
-
-		#else
-
-			// __builtin_ffs returns 1 + index if non zero.
-			index = __builtin_ffs(ulvl) - 1;
-
-		#endif
-
-			return static_cast<uint32_t>(index);
-		}
-	}
-
-	std::string ToString(LogLevel _lvl) noexcept
-	{
-		static constexpr const char* const names[]{
-			"Unknown",
-			"Verbose",
-			"Normal",
-			"Info",
-			"Warning",
-			"Error",
-			"AssertSuccess",
-			"AssertFailure"
-		};
-
-		return names[intl::ScanLogLevel(_lvl) + 1u];
-	}
-
-	std::wstring ToWString(LogLevel _lvl) noexcept
-	{
-		static constexpr const wchar_t* const names[]{
-			L"Unknown",
-			L"Verbose",
-			L"Normal",
-			L"Info",
-			L"Warning",
-			L"Error",
-			L"AssertSuccess",
-			L"AssertFailure"
-		};
-
-		return names[intl::ScanLogLevel(_lvl) + 1u];
-	}
-
-#endif
-
-// ##############################################################
 
 
 // ##############################################################
@@ -594,39 +445,6 @@ namespace edo
 		*/
 		void SetChannelEnabled(const std::wstring& _chanName, bool _bEnabled);
 	};
-
-#if EDO_DEBUG_IMPLEMENTATION
-
-	namespace intl
-	{
-		static const std::wstring separators = L"./_-\\|";
-	}
-
-	bool LogChannelFilter::IsSingleChannelEnabled(const std::wstring& _chanName) const
-	{
-		auto it = mChannels.find(_chanName);
-
-		return it != mChannels.cend() ? it->second : true;
-	}
-
-	bool LogChannelFilter::IsChannelEnabled(const std::wstring& _chanName, size_t _offset) const
-	{
-		const size_t fIndex = _chanName.find_first_of(intl::separators, _offset);
-
-		if (fIndex == std::wstring::npos)
-			return IsSingleChannelEnabled(_chanName);
-
-		return IsSingleChannelEnabled(_chanName.substr(0u, fIndex)) && IsChannelEnabled(_chanName, fIndex + 1);
-	}
-
-	void LogChannelFilter::SetChannelEnabled(const std::wstring& _chanName, bool _bEnabled)
-	{
-		mChannels[_chanName] = _bEnabled;
-	}
-
-#endif // EDO_DEBUG_IMPLEMENTATION
-
-// ##############################################################
 
 
 // ##############################################################
@@ -685,142 +503,14 @@ namespace edo
 		) noexcept;
 	};
 
-#if EDO_DEBUG_IMPLEMENTATION
-
-	namespace intl
-	{
-		tm LocalTime(const time_t& _inTime)
-		{
-			tm qTime; // Queried time.
-
-		#if EDO_DEBUG_PLTF_WIN
-			localtime_s(&qTime, &_inTime);
-		#else
-			localtime_r(&_inTime, &qTime);
-		#endif
-
-			return qTime;
-		}
-
-		tm TimeNow()
-		{
-			time_t now = time(nullptr);
-
-			return LocalTime(now);
-		}
-
-		std::wstring DateToWString(const tm& _tm)
-		{
-			std::wstring str =
-				L'[' + ToWString(_tm.tm_hour) +
-				L':' + ToWString(_tm.tm_min) +
-				L':' + ToWString(_tm.tm_sec) + L']';
-			
-			return str;
-		}
-
-		/**
-		*	\brief \e Getter of file name from file path.
-		*
-		*	\param[in] _filePath	Full path to the file.
-		*
-		*	\returns pointer to the file name in _filePath.
-		*/
-		const char* FileNameFromPath(const char* _filePath) noexcept
-		{
-			// Remove characters until last backslash.
-			const char* fileName = std::strrchr(_filePath, '\\');
-
-			if (!fileName) // No backslash found.
-				fileName = _filePath;
-			else
-				fileName += 1; // Remove last '\\' found.
-
-
-			// Remove characters until last slash.
-			if (const char* filePathNoSlash = std::strrchr(fileName, '/'))
-			{
-				// Remove last '/' found.
-				fileName = filePathNoSlash + 1;
-			}
-
-			return fileName;
-		}
-	}
-
-	Log::Log(
-		std::source_location _src,
-		std::wstring _msg,
-		LogLevel _level,
-		std::wstring _chanName,
-		std::wstring _details,
-		uint32_t _frameNum,
-		std::string _backtrace
-	) noexcept :
-		src{ std::move(_src) },
-		msg{ std::move(_msg) },
-		level{ _level },
-		chanName{ std::move(_chanName) },
-		details{ std::move(_details) },
-		frameNum{ _frameNum },
-		backtrace{ std::move(_backtrace) },
-		dateTime{ intl::TimeNow() }
-	{
-	}
-
-	/**
-	*	\brief ToWString implementation for log.
-	*
-	*	Convert log to wstring.
-	*
-	*	\return log as a wstring.
-	*/
-	std::wstring ToWString(const Log& _log)
-	{
-		std::wstring str;
-
-		// Output date.
-		str += L'[' + ToWString(_log.dateTime.tm_hour) +
-			L':' + ToWString(_log.dateTime.tm_min) +
-			L':' + ToWString(_log.dateTime.tm_sec) + L']';
-
-		// Output FrameNum.
-		str += L'[' + ToWString(_log.frameNum) + L"] ";
-
-		// Output level and channel.
-		str += L'{' + ToWString(_log.level) + L" - " + _log.chanName + L'}';
-
-		// Output location.
-		str += L'\t' + ToWString(intl::FileNameFromPath(_log.src.file_name()))
-			+ L':' + ToWString(_log.src.line()) +
-			L" - " + ToWString(_log.src.function_name()) + L'\n';
-
-		// Output message.
-		str += L"Msg:\t" + _log.msg + L'\n';
-
-		if (!_log.details.empty())
-			str += L"Dets:\t" + _log.details + L'\n';
-
-		if (!_log.backtrace.empty())
-			str += L"Backtrace:\t" + ToWString(_log.backtrace) + L'\n';
-
-		return str;
-	}
-
-#endif // EDO_DEBUG_IMPLEMENTATION
 
 // ##############################################################
-
-// ##############################################################################################################################
-
-
-// ##############################################################################################################################
-// #													STREAMS																	#
-// ##############################################################################################################################
-
+// #						STREAMS								#
 // ##############################################################
-// #					ALogStream								#
-// ##############################################################
+
+// ##################################
+// #			ALogStream			#
+// ##################################
 
 	/// Abstract log stream class.
 	class ALogStream
@@ -866,37 +556,10 @@ namespace edo
 		ALogStream& operator<<(const Log& _log);
 	};
 
-#if EDO_DEBUG_IMPLEMENTATION
 
-	void ALogStream::ProcessLog(const Log& _log, bool _bForce)
-	{
-		const bool bLevelEnabled = levelFlags & static_cast<uint8_t>(_log.level);
-		const bool bChannelEnabled = channelFilter.IsChannelEnabled(_log.chanName);
-
-		if (_bForce || (bLevelEnabled && bChannelEnabled))
-			Output(_log);
-	}
-
-	void ALogStream::Flush()
-	{
-		/* Implementation in children */
-	}
-
-	ALogStream& ALogStream::operator<<(const Log& _log)
-	{
-		ProcessLog(_log);
-
-		return *this;
-	}
-
-#endif // EDO_DEBUG_IMPLEMENTATION
-
-// ##############################################################
-
-
-// ##############################################################
-// #					ConsoleLogStream						#
-// ##############################################################
+// ##################################
+// #		ConsoleLogStream		#
+// ##################################
 
 	/**
 	*	\brief Console Color enum.
@@ -1041,7 +704,810 @@ namespace edo
 		void Flush() override final;
 	};
 
+
+// ##################################
+// #		FileLogStream			#
+// ##################################
+
+	/// Log file stream type.
+	class FileLogStream : public ALogStream
+	{
+	protected:
+		/// Handled file stream.
+		std::wofstream mHandle;
+
+		/**
+		*	\brief Create log and log backup files.
+		*
+		*	\param[in] _fileFullPath	Name and path of the log file.
+		*/
+		void CreateLogFile(const std::string& _fileFullPath);
+
+
+		void Output(const Log& _log) override final;
+
+	public:
+		/**
+		*	\e Value Constructor
+		*
+		*	\param[in] _fileFullPath	Name and path of the file.
+		*/
+		FileLogStream(const std::string& _fileFullPath = "Logs/log.txt") noexcept;
+
+		/**
+		*	\e Destructor. Close the file stream.
+		*/
+		~FileLogStream() noexcept;
+
+
+		void Flush() override final;
+	};
+
+
+// ##############################################################
+// #						LOGGER								#
+// ##############################################################
+
+// ##################################
+// #			ALoggerBase			#
+// ##################################
+
+	/**
+	*	\brief Logger base class implementation.
+	*/
+	class ALoggerBase
+	{
+	protected:
+
+//{ Streams
+
+		/// Registered output streams.
+		std::list<ALogStream*> mStreams;
+
+		/**
+		*	\brief Process log to output.
+		* 
+		*	\param[in] _log		Log to process.
+		*	\param[in] _bForce	Should force log process. Default is false.
+		*/
+		virtual void ProcessLog(const edo::Log& _log, bool _bForce = false);
+
+		/**
+		*	\brief Register a stream to output.
+		* 
+		*	\param[in] _stream	Stream to register.
+		*/
+		virtual void RegisterStream(ALogStream* _stream);
+
+		/**
+		*	\brief Unregister a stream from output.
+		*
+		*	\param[in] _stream	Stream to unregister.
+		*
+		*	\return true on success.
+		*/
+		virtual bool UnregisterStream(ALogStream* _stream);
+
+//}
+
+	public:
+		/**
+		*	\brief Destructor
+		*	Destroy all created log streams.
+		*/
+		virtual ~ALoggerBase();
+
+		/**
+		*	\brief Push a new log in logger.
+		* 
+		*	\param[in] _log		Log to push.
+		*/
+		virtual void Log(edo::Log _log);
+
+		/**
+		*	\brief Process exception.
+		*
+		*	Log assertion on success, otherwise throw exception.
+		*	Use EDO_ASSERT as helper call.
+		*
+		*	\param[in] _exc		exception to process.
+		*/
+		void Assert(edo::Log _exc);
+
+
+//{ Streams
+
+		/**
+		*	\brief Create a new stream to output in.
+		* 
+		*	\tparam StreamT 	Type of stream to create.
+		*	\tparam Args...		Argument variadic types to construct stream.
+		*	\param[in] _args	Arguments to construct stream.
+		*
+		*	\return Newly created stream.
+		*/
+		template <typename StreamT, typename... Args>
+		StreamT& CreateSteam(Args&&... _args)
+		{
+			StreamT* const stream = new StreamT(std::forward<Args>(_args)...);
+
+			RegisterStream(stream);
+
+			return *stream;
+		}
+
+		/**
+		 * \brief Destroy a previously created stream.
+		 * 
+		 * \tparam StreamT 	Type of stream to destroy.
+		 * \param _stream 	Stream variable to destroy.
+		 * \param _bFlush 	Should flush stream before destroy.
+		 * 
+		 * \return true on destroy success.
+		 */
+		template <typename StreamT>
+		bool DestroyStream(StreamT& _stream, bool _bFlush = true)
+		{
+			StreamT* const streamPtr = &_stream;
+
+			const bool bUnregisted = UnregisterSteam(streamPtr);
+
+			if (bUnregisted)
+			{
+				if (_bFlush)
+					streamPtr->Flush();
+
+				delete streamPtr;
+			}
+
+			return bUnregisted;
+		}
+
+
+		/**
+		*	Destroy all streams.
+		* 
+		*	\param _bFlush 	Should flush stream before destroy.
+		*/
+		virtual void ClearStreams(bool _bFlush = true);
+
+
+		/**
+		*	\brief Force logger to flush all streams.
+		*/
+		virtual void Flush();
+
+
+		/**
+		*	\brief \e Enable \b LogLevel for all registered streams.
+		* 
+		*	\param[in] _level		Level to enable.
+		*/
+		virtual void EnableLevel(LogLevel _level);
+
+		/**
+		*	\brief \e Disable \b LogLevel for all registered streams.
+		*
+		*	\param[in] _level		Level to disable.
+		*/
+		virtual void DisableLevel(LogLevel _level);
+
+
+		/**
+		*	\brief \e Enable \b LogChannel for all registered streams.
+		* 
+		*	\param[in] _channel		Channel to enable.
+		*/
+		virtual void EnableChannel(const std::wstring& _channel);
+
+		/**
+		*	\brief \e Disable \b LogChannel for all registered streams.
+		*
+		*	\param[in] _channel		Channel to disable.
+		*/
+		virtual void DisableChannel(const std::wstring& _channel);
+
+//}
+
+
+//{ Frame Num
+
+		/// Increment current registered frame number.
+		virtual void IncrementFrameNum() = 0;
+
+		/// Get current registered frame number.
+		virtual uint32_t GetFrameNum() const = 0;
+
+//}
+	};
+
+
+// ##################################
+// #			Logger				#
+// ##################################
+
+	/**
+	*	\brief Basic Logger class implementation.
+	*
+	*	Non-thread-safe logging.
+	*/
+	class Logger : public ALoggerBase
+	{
+		/**
+		* \brief Current registered frame number.
+		* Use IncrementFrameNum() or EDO_LOG_END_OF_FRAME() at the end of the frame to track frame number.
+		*/
+		uint32_t mFrameNum = 0u;
+
+	public:
+
+//{ Frame Num
+
+		void IncrementFrameNum() override final;
+
+		uint32_t GetFrameNum() const override final;
+
+//}
+	};
+
+
+// ##################################
+// #		Logger-Thread			#
+// ##################################
+
+	/**
+	*	\brief Multithread logger class.
+	* 
+	*	Create one thread for log output.
+	*	Push logs in thread-safe queue.
+	*/
+	class LoggerThread : public ALoggerBase
+	{
+	};
+
+
+// ##############################################################
+// #						Instance							#
+// ##############################################################
+
+	/// Global Debug namespace
+	namespace Debug
+	{
+		/// Logger instance.
+		extern ALoggerBase* logger;
+
+		/// Simple logger callback.
+		extern void (*logCB)(edo::Log);
+
+
+		/**
+		* \brief Initialize default logger for single-thread use.
+		* Console color and file output.
+		*/
+		void InitDefaultLogger();
+
+		/**
+		* \brief Initialize default logger for multi-thread use.
+		* Console color and file output.
+		*/
+		void InitDefaultLoggerThread();
+	}
+
+
+// ##############################################################
+// #						MACROs								#
+// ##############################################################
+
+	/// Convert any _param into a const char8* (Stringification).
+	#define EDO_STR(_param) # _param
+
+	/// Convert a string _param into a const wchar*
+	#define EDO_WIDE(_param) L"" _param
+
+	/// Convert any _param into a const wchar* (Wide Stringification)
+	#define EDO_WSTR(_param) EDO_WIDE(EDO_STR(_param))
+
+	/**
+	 * Optional macro argument parentheses: remove "only if" parentheses.
+	 * 
+	 * Sources:
+	 * https://stackoverflow.com/a/62984543
+	 * https://www.mikeash.com/pyblog/friday-qa-2015-03-20-preprocessor-abuse-and-optional-parentheses.html
+	*/
+	#define __EDO_EXTRACT(...) __EDO_EXTRACT __VA_ARGS__
+	#define __EDO_NOTHING__EDO_EXTRACT
+	#define __EDO_PASTE(_x, ...) _x ## __VA_ARGS__
+	#define __EDO_EVAL_PASTE(_x, ...) __EDO_PASTE(_x, __VA_ARGS__)
+	#define __EDO_UNPARENT(_x) __EDO_EVAL_PASTE(__EDO_NOTHING, __EDO_EXTRACT _x)
+
+	#define __EDO_LOG_FRAME_NUM\
+		edo::Debug::logger ? edo::Debug::logger->GetFrameNum() : 0u
+
+#if EDO_DEBUG_ENABLE_ASSERT_BREAK
+	#define __EDO_BREAK() std::breakpoint()
+#else
+	#define __EDO_BREAK()
+#endif
+
+	#define __EDO_LOGGER(_log)\
+		if (edo::Debug::logger)\
+			edo::Debug::logger->Log(_log);\
+		else if (edo::Debug::logCB)\
+			edo::Debug::logCB(_log);\
+		else\
+			std::cerr << "Try logging with invalid logger instance or callback! Initialize edo::Debug::logger or edo::Debug::logCB." << std::endl;
+
+	#define __EDO_CREATE_LOG(_str, _lvl, _chan, _dets) edo::Log(\
+		std::source_location::current(),\
+		edo::WStringFormat(__EDO_UNPARENT(_str)),\
+		edo::LogLevel::_lvl,\
+		EDO_WSTR(_chan),\
+		edo::WStringFormat(__EDO_UNPARENT(_dets)),\
+		__EDO_LOG_FRAME_NUM,\
+		std::string()\
+	)
+
+	// TODO: Add backtrace.
+
+	#define __EDO_LOG_SELECTOR(_1, _2, _3, _4, _5, _name, ...) _name
+
+	#define __EDO_LOG4(_str, _lvl, _chan, _dets)				__EDO_LOGGER(__EDO_CREATE_LOG(_str, _lvl, _chan, _dets));
+	#define __EDO_LOG5(_str, _lvl, _chan, _dets, _postCmd)		{ __EDO_LOG4(_str, _lvl, _chan, _dets) _postCmd; }
+	#define __EDO_LOG3(_str, _lvl, _chan)						__EDO_LOG4(_str, _lvl, _chan, L"")
+	#define __EDO_LOG2(_str, _lvl)								__EDO_LOG3(_str, _lvl, Default)
+	#define __EDO_LOG1(_str)									__EDO_LOG2(_str, Normal)
+
+	#define __EDO_COND_LOG(_pred, _lvl, ...)		if(!(_pred)) EDO_LOG(L"{ " EDO_WSTR(_pred) " }\tevaluated to false!", _lvl, ##__VA_ARGS__)
+
+
+	#define __EDO_ASSERT(_log)\
+		if (edo::Debug::logger)\
+			edo::Debug::logger->Assert(_log);\
+		else if (edo::Debug::logCB)\
+			edo::Debug::logCB(_log);\
+		else\
+			std::cerr << "Try logging with invalid logger instance or callback! Initialize edo::Debug::logger or edo::Debug::logCB." << std::endl;
+
+	#define __EDO_ASSERT_SELECTOR(_1, _2, _name, ...) _name
+
+	#define __EDO_ASSERT4(_str, _lvl, _chan, _dets){\
+		auto exc = __EDO_CREATE_LOG(_str, _lvl, _chan, _dets);\
+		if (exc.level != edo::LogLevel::AssertFailure) { __EDO_ASSERT(std::move(exc)); }\
+		else { __EDO_ASSERT(exc); __EDO_BREAK(); throw exc; }\
+	}
+	#define __EDO_ASSERT3(_str, _lvl, _chan)	__EDO_ASSERT4(_str, _lvl, _chan, L"")
+	#define __EDO_ASSERT2(_str, _lvl)			__EDO_ASSERT3(_str, _lvl, Default)
+
+#if EDO_CONFIG_DEBUG || EDO_DEBUG_ENABLE_LOG_RELEASE
+
+	/**
+	*	\def EDO_LOG_END_OF_FRAME()
+	*
+	*	\brief Edo Log end of frame macro.
+	*
+	*	Helper macro to track frame number used for logging.
+	*/
+	#define EDO_LOG_END_OF_FRAME() { if(edo::Debug::logger) edo::Debug::logger->IncrementFrameNum(); }
+
+	/**
+	*	\def EDO_BREAK()
+	*
+	*	\brief Edo IDE breakpoint macro
+	* 
+	*	Requires `EDO_DEBUG_ENABLE_ASSERT_BREAK` option (default ON)
+	*/
+	#define EDO_BREAK() { __EDO_BREAK(); }
+
+	/**
+	*	\def EDO_LOG(_fstr, _lvl, _chan, _dets)
+	*
+	*	\brief Edo Log macro.
+	*
+	*	Helper macro to use Debug::Log.
+	*
+	*	\param[in] _fstr	Formatted String message of the log.
+	*		Use (_str, _args) with:
+	*		_str		String message of the log. Parentheses are optionnal for single string or object.
+	*		_args		Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
+	*	\param[in] _lvl		Level of the log (optional).
+	*	\param[in] _chan	Channel of the log (optional).
+	*	\param[in] _dets	Details string of the log (optional).
+	*/
+	#define EDO_LOG(...) { __EDO_LOG_SELECTOR(__VA_ARGS__, __EDO_LOG5, __EDO_LOG4, __EDO_LOG3, __EDO_LOG2, __EDO_LOG1)(__VA_ARGS__) }
+
+	/**
+	*	\def EDO_WARN(_pred, _chan, _dets, _postCmd)
+	*
+	*	\brief Edo Log "warning if" macro.
+	*
+	*	Helper macro to use conditionnal Debug::Log warning.
+	*
+	*	\param[in] _pred	predicate of the Log. Output warnings on false.
+	*	\param[in] _chan	Channel of the log.
+	*	\param[in] _dets	Details string of the log (optional).
+	*	\param[in] _postCmd	Post-log command on true predicate, usually for return value (optional).
+	*/
+	#define EDO_WARN(_pred, ...) { __EDO_COND_LOG(_pred, Warning, ##__VA_ARGS__) }
+
+	/**
+	*	\def EDO_ERROR(_pred, _chan, _dets, _postCmd)
+	*
+	*	\brief Edo Log "error if" macro.
+	*
+	*	Helper macro to use conditionnal Debug::Log error.
+	*
+	*	\param[in] _pred	predicate of the Log. Output error on false.
+	*	\param[in] _chan	Channel of the log (optional).
+	*	\param[in] _dets	Details string of the log (optional).
+	*	\param[in] _postCmd	Post-log command on true predicate, usually for return value (optional).
+	*/
+	#define EDO_ERROR(_pred, ...) { __EDO_COND_LOG(_pred, Error, ##__VA_ARGS__) }
+
+	/**
+	*	\def EDO_ASSERT(_pred, _chan, _dets, _postCmd)
+	*
+	*	\brief Edo Log "assert if" macro.
+	*
+	*	Helper macro to use conditionnal Debug::Log assert.
+	*
+	*	\param[in] _pred	predicate of the Log. Output AssertFailure on false and AssertSuccess on true.
+	*	\param[in] _chan	Channel of the log (optional).
+	*	\param[in] _dets	Details string of the log (optional).
+	*/
+	#define EDO_ASSERT(_pred, ...)\
+	{\
+		auto bPred = (_pred);\
+		if (bPred) { __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(L"{ " EDO_WSTR(_pred) " }\tevaluated to true!", AssertSuccess, ##__VA_ARGS__) }\
+		else { __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(L"{ " EDO_WSTR(_pred) " }\tevaluated to false!", AssertFailure, ##__VA_ARGS__) }\
+	}
+
+	/**
+	*	\def EDO_THROW(_fstr, _chan, _dets)
+	*
+	*	\brief Edo Throw macro.
+	*
+	*	Helper macro to force call throw with Debug::Log assert.
+	*
+	*	\param[in] _fstr	Formatted String message of the log.
+	*		Use (_str, _args) with:
+	*		_str		String message of the log. Parentheses are optionnal for single string or object.
+	*		_args		Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
+	*	\param[in] _chan	Channel of the log (optional).
+	*	\param[in] _dets	Details string of the log (optional).
+	*/
+	#define EDO_THROW(_fstr, ...) __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(_fstr, AssertFailure, ##__VA_ARGS__);
+
+#else
+
+	#define EDO_LOG_END_OF_FRAME() {}
+
+	#define EDO_BREAK() {}
+
+	#define EDO_LOG(...) {}
+	#define EDO_WARN(...) {}
+	#define EDO_ERROR(...) {}
+
+	#define EDO_ASSERT(...) {}
+	#define EDO_THROW(...) {}
+
+#endif
+
+
+// ##############################################################################################################################
+//															IMPLEMENTATION														#
+// ##############################################################################################################################
+
 #if EDO_DEBUG_IMPLEMENTATION
+
+// ##############################################################
+// #					STRING FORMATTING						#
+// ##############################################################
+
+	namespace intl
+	{
+		std::string ToStringBinary(const char* _data, uint64_t _size) noexcept
+		{
+			static constexpr char table[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
+			std::string res;
+
+			res.reserve(3 * _size + 1);
+
+			res += '<';
+
+			for (const char* it = _data + _size - 1; it >= _data; --it)
+			{
+				res += table[(*it & 0xF0) >> 4];
+				res += table[*it & 0x0F];
+
+				res += '-';
+			}
+
+			res.back() = '>';
+
+			return res;
+		}
+
+		std::wstring ConvertCStringToWString(const char* _cstr, uint64_t _size)
+		{
+		#if EDO_DEBUG_PLTF_WIN
+
+			// strlen does not count '\0'
+			const uint64_t srcByteSize = (_size != uint64_t(-1) ? _size : strlen(_cstr)) * sizeof(char);
+
+			if (srcByteSize == 0)
+				return std::wstring();
+
+			// Compute converted size.
+			const int wsize = MultiByteToWideChar(CP_UTF8, 0, _cstr, static_cast<int>(srcByteSize), nullptr, 0);
+
+			std::wstring out;
+			out.resize(wsize);
+
+			// Convert.
+			const int res = MultiByteToWideChar(CP_UTF8, 0, _cstr, static_cast<int>(srcByteSize), out.data(), wsize);
+			(void)res;
+
+			#if EDO_CONFIG_DEBUG
+
+				// Function failed.
+				if (res == 0)
+					return std::wstring(L"Invalid ToWString conversion. Error code [" + std::to_wstring(GetLastError()) + L"]");
+
+			#endif
+
+			return out;
+
+		#endif // EDO_DEBUG_PLTF_WIN
+		}
+	}
+
+	std::string ToString(const tm& _tm)
+	{
+		return
+			std::to_string(_tm.tm_mday) + '.' +
+			std::to_string(_tm.tm_mon + 1) + '.' +		// January is month 1.
+			std::to_string(_tm.tm_year + 1900) + '-' +	// tm_year is the year since 1900.
+			std::to_string(_tm.tm_hour) + 'h' +
+			std::to_string(_tm.tm_min) + 'm' +
+			std::to_string(_tm.tm_sec) + 's';
+	}
+
+
+// ##############################################################
+// #					LOG LEVEL								#
+// ##############################################################
+
+	namespace intl
+	{
+		uint32_t ScanLogLevel(LogLevel _lvl)
+		{
+			const uint32_t ulvl = static_cast<uint32_t>(_lvl);
+
+			unsigned long index = 0u;
+
+		#if _MSC_VER
+
+			_BitScanForward64(&index, ulvl);
+
+		#else
+
+			// __builtin_ffs returns 1 + index if non zero.
+			index = __builtin_ffs(ulvl) - 1;
+
+		#endif
+
+			return static_cast<uint32_t>(index);
+		}
+	}
+
+
+	std::string ToString(LogLevel _lvl) noexcept
+	{
+		static constexpr const char* const names[]{
+			"Unknown",
+			"Verbose",
+			"Normal",
+			"Info",
+			"Warning",
+			"Error",
+			"AssertSuccess",
+			"AssertFailure"
+		};
+
+		return names[intl::ScanLogLevel(_lvl) + 1u];
+	}
+
+	std::wstring ToWString(LogLevel _lvl) noexcept
+	{
+		static constexpr const wchar_t* const names[]{
+			L"Unknown",
+			L"Verbose",
+			L"Normal",
+			L"Info",
+			L"Warning",
+			L"Error",
+			L"AssertSuccess",
+			L"AssertFailure"
+		};
+
+		return names[intl::ScanLogLevel(_lvl) + 1u];
+	}
+
+
+// ##############################################################
+// #					LOG CHANNEL								#
+// ##############################################################
+
+	bool LogChannelFilter::IsSingleChannelEnabled(const std::wstring& _chanName) const
+	{
+		auto it = mChannels.find(_chanName);
+
+		return it != mChannels.cend() ? it->second : true;
+	}
+
+	bool LogChannelFilter::IsChannelEnabled(const std::wstring& _chanName, size_t _offset) const
+	{
+		static const std::wstring separators = L"./_-\\|";
+
+		const size_t fIndex = _chanName.find_first_of(separators, _offset);
+
+		if (fIndex == std::wstring::npos)
+			return IsSingleChannelEnabled(_chanName);
+
+		return IsSingleChannelEnabled(_chanName.substr(0u, fIndex)) && IsChannelEnabled(_chanName, fIndex + 1);
+	}
+
+	void LogChannelFilter::SetChannelEnabled(const std::wstring& _chanName, bool _bEnabled)
+	{
+		mChannels[_chanName] = _bEnabled;
+	}
+
+
+// ##############################################################
+// #						LOG									#
+// ##############################################################
+
+	namespace intl
+	{
+		tm LocalTime(const time_t& _inTime)
+		{
+			tm qTime; // Queried time.
+
+		#if EDO_DEBUG_PLTF_WIN
+			localtime_s(&qTime, &_inTime);
+		#else
+			localtime_r(&_inTime, &qTime);
+		#endif
+
+			return qTime;
+		}
+
+		tm TimeNow()
+		{
+			time_t now = time(nullptr);
+
+			return LocalTime(now);
+		}
+
+		/**
+		*	\brief \e Getter of file name from file path.
+		*
+		*	\param[in] _filePath	Full path to the file.
+		*
+		*	\returns pointer to the file name in _filePath.
+		*/
+		const char* FileNameFromPath(const char* _filePath) noexcept
+		{
+			// Remove characters until last backslash.
+			const char* fileName = std::strrchr(_filePath, '\\');
+
+			if (!fileName) // No backslash found.
+				fileName = _filePath;
+			else
+				fileName += 1; // Remove last '\\' found.
+
+
+			// Remove characters until last slash.
+			if (const char* filePathNoSlash = std::strrchr(fileName, '/'))
+			{
+				// Remove last '/' found.
+				fileName = filePathNoSlash + 1;
+			}
+
+			return fileName;
+		}
+	}
+
+	Log::Log(
+		std::source_location _src,
+		std::wstring _msg,
+		LogLevel _level,
+		std::wstring _chanName,
+		std::wstring _details,
+		uint32_t _frameNum,
+		std::string _backtrace
+	) noexcept :
+		src{ std::move(_src) },
+		msg{ std::move(_msg) },
+		level{ _level },
+		chanName{ std::move(_chanName) },
+		details{ std::move(_details) },
+		frameNum{ _frameNum },
+		backtrace{ std::move(_backtrace) },
+		dateTime{ intl::TimeNow() }
+	{
+	}
+
+	/**
+	*	\brief ToWString implementation for log.
+	*
+	*	Convert log to wstring.
+	*
+	*	\return log as a wstring.
+	*/
+	std::wstring ToWString(const Log& _log)
+	{
+		std::wstring str;
+
+		// Output date.
+		str += L'[' + ToWString(_log.dateTime.tm_hour) +
+			L':' + ToWString(_log.dateTime.tm_min) +
+			L':' + ToWString(_log.dateTime.tm_sec) + L']';
+
+		// Output FrameNum.
+		str += L'[' + ToWString(_log.frameNum) + L"] ";
+
+		// Output level and channel.
+		str += L'{' + ToWString(_log.level) + L" - " + _log.chanName + L'}';
+
+		// Output location.
+		str += L'\t' + ToWString(intl::FileNameFromPath(_log.src.file_name()))
+			+ L':' + ToWString(_log.src.line()) +
+			L" - " + ToWString(_log.src.function_name()) + L'\n';
+
+		// Output message.
+		str += L"Msg:\t" + _log.msg + L'\n';
+
+		if (!_log.details.empty())
+			str += L"Dets:\t" + _log.details + L'\n';
+
+		if (!_log.backtrace.empty())
+			str += L"Backtrace:\t" + ToWString(_log.backtrace) + L'\n';
+
+		return str;
+	}
+
+
+// ##################################
+// #			ALogStream			#
+// ##################################
+
+	void ALogStream::ProcessLog(const Log& _log, bool _bForce)
+	{
+		const bool bLevelEnabled = levelFlags & static_cast<uint8_t>(_log.level);
+		const bool bChannelEnabled = channelFilter.IsChannelEnabled(_log.chanName);
+
+		if (_bForce || (bLevelEnabled && bChannelEnabled))
+			Output(_log);
+	}
+
+	void ALogStream::Flush()
+	{
+		/* Implementation in children */
+	}
+
+	ALogStream& ALogStream::operator<<(const Log& _log)
+	{
+		ProcessLog(_log);
+
+		return *this;
+	}
+
+
+// ##################################
+// #		ConsoleLogStream		#
+// ##################################
 
 	namespace intl
 	{
@@ -1256,50 +1722,10 @@ namespace edo
 		edo::SetConsoleColor(CslColor::Reset);
 	}
 
-#endif // EDO_DEBUG_IMPLEMENTATION
 
-// ##############################################################
-
-
-// ##############################################################
-// #					FileLogStream							#
-// ##############################################################
-
-	/// Log file stream type.
-	class FileLogStream : public ALogStream
-	{
-	protected:
-		/// Handled file stream.
-		std::wofstream mHandle;
-
-		/**
-		*	\brief Create log and log backup files.
-		*
-		*	\param[in] _fileFullPath	Name and path of the log file.
-		*/
-		void CreateLogFile(const std::string& _fileFullPath);
-
-
-		void Output(const Log& _log) override final;
-
-	public:
-		/**
-		*	\e Value Constructor
-		*
-		*	\param[in] _fileFullPath	Name and path of the file.
-		*/
-		FileLogStream(const std::string& _fileFullPath = "Logs/log.txt") noexcept;
-
-		/**
-		*	\e Destructor. Close the file stream.
-		*/
-		~FileLogStream() noexcept;
-
-
-		void Flush() override final;
-	};
-
-#if EDO_DEBUG_IMPLEMENTATION
+// ##################################
+// #		FileLogStream			#
+// ##################################
 
 	FileLogStream::FileLogStream(const std::string& _fileFullPath) noexcept
 	{
@@ -1367,191 +1793,10 @@ namespace edo
 		mHandle << ToWString(_log) << std::endl;
 	}
 
-#endif // EDO_DEBUG_IMPLEMENTATION
 
-// ##############################################################
-
-// ##############################################################################################################################
-
-
-// ##############################################################################################################################
-// #													LOGGER																	#
-// ##############################################################################################################################
-
-// ##############################################################
-// #					ALoggerBase								#
-// ##############################################################
-
-	/**
-	*	\brief Logger base class implementation.
-	*/
-	class ALoggerBase
-	{
-	protected:
-
-//{ Streams
-
-		/// Registered output streams.
-		std::list<ALogStream*> mStreams;
-
-		/**
-		*	\brief Process log to output.
-		* 
-		*	\param[in] _log		Log to process.
-		*	\param[in] _bForce	Should force log process. Default is false.
-		*/
-		virtual void ProcessLog(const edo::Log& _log, bool _bForce = false);
-
-		/**
-		*	\brief Register a stream to output.
-		* 
-		*	\param[in] _stream	Stream to register.
-		*/
-		virtual void RegisterStream(ALogStream* _stream);
-
-		/**
-		*	\brief Unregister a stream from output.
-		*
-		*	\param[in] _stream	Stream to unregister.
-		*
-		*	\return true on success.
-		*/
-		virtual bool UnregisterStream(ALogStream* _stream);
-
-//}
-
-	public:
-		/**
-		*	\brief Destructor
-		*	Destroy all created log streams.
-		*/
-		virtual ~ALoggerBase();
-
-		/**
-		*	\brief Push a new log in logger.
-		* 
-		*	\param[in] _log		Log to push.
-		*/
-		virtual void Log(edo::Log _log);
-
-		/**
-		*	\brief Process exception.
-		*
-		*	Log assertion on success, otherwise throw exception.
-		*	Use EDO_ASSERT as helper call.
-		*
-		*	\param[in] _exc		exception to process.
-		*/
-		void Assert(edo::Log _exc);
-
-
-//{ Streams
-
-		/**
-		*	\brief Create a new stream to output in.
-		* 
-		*	\tparam StreamT 	Type of stream to create.
-		*	\tparam Args...		Argument variadic types to construct stream.
-		*	\param[in] _args	Arguments to construct stream.
-		*
-		*	\return Newly created stream.
-		*/
-		template <typename StreamT, typename... Args>
-		StreamT& CreateSteam(Args&&... _args)
-		{
-			StreamT* const stream = new StreamT(std::forward<Args>(_args)...);
-
-			RegisterStream(stream);
-
-			return *stream;
-		}
-
-		/**
-		 * \brief Destroy a previously created stream.
-		 * 
-		 * \tparam StreamT 	Type of stream to destroy.
-		 * \param _stream 	Stream variable to destroy.
-		 * \param _bFlush 	Should flush stream before destroy.
-		 * 
-		 * \return true on destroy success.
-		 */
-		template <typename StreamT>
-		bool DestroyStream(StreamT& _stream, bool _bFlush = true)
-		{
-			StreamT* const streamPtr = &_stream;
-
-			const bool bUnregisted = UnregisterSteam(streamPtr);
-
-			if (bUnregisted)
-			{
-				if (_bFlush)
-					streamPtr->Flush();
-
-				delete streamPtr;
-			}
-
-			return bUnregisted;
-		}
-
-
-		/**
-		*	Destroy all streams.
-		* 
-		*	\param _bFlush 	Should flush stream before destroy.
-		*/
-		virtual void ClearStreams(bool _bFlush = true);
-
-
-		/**
-		*	\brief Force logger to flush all streams.
-		*/
-		virtual void Flush();
-
-
-		/**
-		*	\brief \e Enable \b LogLevel for all registered streams.
-		* 
-		*	\param[in] _level		Level to enable.
-		*/
-		virtual void EnableLevel(LogLevel _level);
-
-		/**
-		*	\brief \e Disable \b LogLevel for all registered streams.
-		*
-		*	\param[in] _level		Level to disable.
-		*/
-		virtual void DisableLevel(LogLevel _level);
-
-
-		/**
-		*	\brief \e Enable \b LogChannel for all registered streams.
-		* 
-		*	\param[in] _channel		Channel to enable.
-		*/
-		virtual void EnableChannel(const std::wstring& _channel);
-
-		/**
-		*	\brief \e Disable \b LogChannel for all registered streams.
-		*
-		*	\param[in] _channel		Channel to disable.
-		*/
-		virtual void DisableChannel(const std::wstring& _channel);
-
-//}
-
-
-//{ Frame Num
-
-		/// Increment current registered frame number.
-		virtual void IncrementFrameNum() = 0;
-
-		/// Get current registered frame number.
-		virtual uint32_t GetFrameNum() const = 0;
-
-//}
-	};
-
-#if EDO_DEBUG_IMPLEMENTATION
+// ##################################
+// #			ALoggerBase			#
+// ##################################
 
 	ALoggerBase::~ALoggerBase()
 	{
@@ -1658,40 +1903,10 @@ namespace edo
 
 //}
 
-#endif // EDO_DEBUG_IMPLEMENTATION
 
-// ##############################################################
-
-
-// ##############################################################
-// #					Logger									#
-// ##############################################################
-
-	/**
-	*	\brief Basic Logger class implementation.
-	*
-	*	Non-thread-safe logging.
-	*/
-	class Logger : public ALoggerBase
-	{
-		/**
-		* \brief Current registered frame number.
-		* Use IncrementFrameNum() or EDO_LOG_END_OF_FRAME() at the end of the frame to track frame number.
-		*/
-		uint32_t mFrameNum = 0u;
-
-	public:
-
-//{ Frame Num
-
-		void IncrementFrameNum() override final;
-
-		uint32_t GetFrameNum() const override final;
-
-//}
-	};
-
-#if EDO_DEBUG_IMPLEMENTATION
+// ##################################
+// #			Logger				#
+// ##################################
 
 	void Logger::IncrementFrameNum()
 	{
@@ -1703,65 +1918,21 @@ namespace edo
 		return mFrameNum;
 	}
 
-#endif // EDO_DEBUG_IMPLEMENTATION
-
-// ##############################################################
-
-
-// ##############################################################
-// #					Logger-Thread							#
-// ##############################################################
-
-	/**
-	*	\brief Multithread logger class.
-	* 
-	*	Create one thread for log output.
-	*	Push logs in thread-safe queue.
-	*/
-	class LoggerThread : public ALoggerBase
-	{
-	};
-
-// ##############################################################
-
 
 // ##############################################################
 // #						Instance							#
 // ##############################################################
 
-	/// Global Debug namespace
+	namespace intl
+	{
+		void DefaultLogCallback(edo::Log _log)
+		{
+			std::wcout << edo::ToWString(_log) << std::endl;
+		}
+	}
+
 	namespace Debug
 	{
-		/// Logger instance.
-		extern ALoggerBase* logger;
-
-		/// Simple logger callback.
-		extern void (*logCB)(edo::Log);
-
-
-		/**
-		* \brief Initialize default logger for single-thread use.
-		* Console color and file output.
-		*/
-		void InitDefaultLogger();
-
-		/**
-		* \brief Initialize default logger for multi-thread use.
-		* Console color and file output.
-		*/
-		void InitDefaultLoggerThread();
-
-
-#if EDO_DEBUG_IMPLEMENTATION
-
-		namespace intl
-		{
-			void DefaultLogCallback(edo::Log _log)
-			{
-				std::wcout << edo::ToWString(_log) << std::endl;
-			}
-		}
-
 		ALoggerBase* logger = nullptr;
 		void (*logCB)(edo::Log) = intl::DefaultLogCallback;
 
@@ -1786,214 +1957,9 @@ namespace edo
 
 			//edo::Debug::logger = &defaultLoggerThread;
 		}
+	}
 
 #endif // EDO_DEBUG_IMPLEMENTATION
-	}
-
-// ##############################################################
-
-
-// ##############################################################
-// #						MACROs								#
-// ##############################################################
-
-	/// Convert any _param into a const char8* (Stringification).
-	#define EDO_STR(_param) # _param
-
-	/// Convert a string _param into a const wchar*
-	#define EDO_WIDE(_param) L"" _param
-
-	/// Convert any _param into a const wchar* (Wide Stringification)
-	#define EDO_WSTR(_param) EDO_WIDE(EDO_STR(_param))
-
-	/**
-	 * Optional macro argument parentheses: remove "only if" parentheses.
-	 * 
-	 * Sources:
-	 * https://stackoverflow.com/a/62984543
-	 * https://www.mikeash.com/pyblog/friday-qa-2015-03-20-preprocessor-abuse-and-optional-parentheses.html
-	*/
-	#define __EDO_EXTRACT(...) __EDO_EXTRACT __VA_ARGS__
-	#define __EDO_NOTHING__EDO_EXTRACT
-	#define __EDO_PASTE(_x, ...) _x ## __VA_ARGS__
-	#define __EDO_EVAL_PASTE(_x, ...) __EDO_PASTE(_x, __VA_ARGS__)
-	#define __EDO_UNPARENT(_x) __EDO_EVAL_PASTE(__EDO_NOTHING, __EDO_EXTRACT _x)
-
-	#define __EDO_LOG_FRAME_NUM\
-		edo::Debug::logger ? edo::Debug::logger->GetFrameNum() : 0u
-
-#if EDO_DEBUG_ENABLE_ASSERT_BREAK
-	#define __EDO_BREAK() std::breakpoint()
-#else
-	#define __EDO_BREAK()
-#endif
-
-	#define __EDO_LOGGER(_log)\
-		if (edo::Debug::logger)\
-			edo::Debug::logger->Log(_log);\
-		else if (edo::Debug::logCB)\
-			edo::Debug::logCB(_log);\
-		else\
-			std::cerr << "Try logging with invalid logger instance or callback! Initialize edo::Debug::logger or edo::Debug::logCB." << std::endl;
-
-	#define __EDO_CREATE_LOG(_str, _lvl, _chan, _dets) edo::Log(\
-		std::source_location::current(),\
-		edo::WStringFormat(__EDO_UNPARENT(_str)),\
-		edo::LogLevel::_lvl,\
-		EDO_WSTR(_chan),\
-		edo::WStringFormat(__EDO_UNPARENT(_dets)),\
-		__EDO_LOG_FRAME_NUM,\
-		std::string()\
-	)
-
-	// TODO: Add backtrace.
-
-	#define __EDO_LOG_SELECTOR(_1, _2, _3, _4, _5, _name, ...) _name
-
-	#define __EDO_LOG4(_str, _lvl, _chan, _dets)				__EDO_LOGGER(__EDO_CREATE_LOG(_str, _lvl, _chan, _dets));
-	#define __EDO_LOG5(_str, _lvl, _chan, _dets, _postCmd)		{ __EDO_LOG4(_str, _lvl, _chan, _dets) _postCmd; }
-	#define __EDO_LOG3(_str, _lvl, _chan)						__EDO_LOG4(_str, _lvl, _chan, L"")
-	#define __EDO_LOG2(_str, _lvl)								__EDO_LOG3(_str, _lvl, Default)
-	#define __EDO_LOG1(_str)									__EDO_LOG2(_str, Normal)
-
-	#define __EDO_COND_LOG(_pred, _lvl, ...)		if(!(_pred)) EDO_LOG(L"{ " EDO_WSTR(_pred) " }\tevaluated to false!", _lvl, ##__VA_ARGS__)
-
-
-	#define __EDO_ASSERT(_log)\
-		if (edo::Debug::logger)\
-			edo::Debug::logger->Assert(_log);\
-		else if (edo::Debug::logCB)\
-			edo::Debug::logCB(_log);\
-		else\
-			std::cerr << "Try logging with invalid logger instance or callback! Initialize edo::Debug::logger or edo::Debug::logCB." << std::endl;
-
-	#define __EDO_ASSERT_SELECTOR(_1, _2, _name, ...) _name
-
-	#define __EDO_ASSERT4(_str, _lvl, _chan, _dets){\
-		auto exc = __EDO_CREATE_LOG(_str, _lvl, _chan, _dets);\
-		if (exc.level != edo::LogLevel::AssertFailure) { __EDO_ASSERT(std::move(exc)); }\
-		else { __EDO_ASSERT(exc); __EDO_BREAK(); throw exc; }\
-	}
-	#define __EDO_ASSERT3(_str, _lvl, _chan)	__EDO_ASSERT4(_str, _lvl, _chan, L"")
-	#define __EDO_ASSERT2(_str, _lvl)			__EDO_ASSERT3(_str, _lvl, Default)
-
-#if EDO_CONFIG_DEBUG || EDO_DEBUG_ENABLE_LOG_RELEASE
-
-	/**
-	*	\def EDO_LOG_END_OF_FRAME()
-	*
-	*	\brief Edo Log end of frame macro.
-	*
-	*	Helper macro to track frame number used for logging.
-	*/
-	#define EDO_LOG_END_OF_FRAME() { if(edo::Debug::logger) edo::Debug::logger->IncrementFrameNum(); }
-
-	/**
-	*	\def EDO_BREAK()
-	*
-	*	\brief Edo IDE breakpoint macro
-	* 
-	*	Requires `EDO_DEBUG_ENABLE_ASSERT_BREAK` option (default ON)
-	*/
-	#define EDO_BREAK() { __EDO_BREAK(); }
-
-	/**
-	*	\def EDO_LOG(_fstr, _lvl, _chan, _dets)
-	*
-	*	\brief Edo Log macro.
-	*
-	*	Helper macro to use Debug::Log.
-	*
-	*	\param[in] _fstr	Formatted String message of the log.
-	*		Use (_str, _args) with:
-	*		_str		String message of the log. Parentheses are optionnal for single string or object.
-	*		_args		Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
-	*	\param[in] _lvl		Level of the log (optional).
-	*	\param[in] _chan	Channel of the log (optional).
-	*	\param[in] _dets	Details string of the log (optional).
-	*/
-	#define EDO_LOG(...) { __EDO_LOG_SELECTOR(__VA_ARGS__, __EDO_LOG5, __EDO_LOG4, __EDO_LOG3, __EDO_LOG2, __EDO_LOG1)(__VA_ARGS__) }
-
-	/**
-	*	\def EDO_WARN(_pred, _chan, _dets, _postCmd)
-	*
-	*	\brief Edo Log "warning if" macro.
-	*
-	*	Helper macro to use conditionnal Debug::Log warning.
-	*
-	*	\param[in] _pred	predicate of the Log. Output warnings on false.
-	*	\param[in] _chan	Channel of the log.
-	*	\param[in] _dets	Details string of the log (optional).
-	*	\param[in] _postCmd	Post-log command on true predicate, usually for return value (optional).
-	*/
-	#define EDO_WARN(_pred, ...) { __EDO_COND_LOG(_pred, Warning, ##__VA_ARGS__) }
-
-	/**
-	*	\def EDO_ERROR(_pred, _chan, _dets, _postCmd)
-	*
-	*	\brief Edo Log "error if" macro.
-	*
-	*	Helper macro to use conditionnal Debug::Log error.
-	*
-	*	\param[in] _pred	predicate of the Log. Output error on false.
-	*	\param[in] _chan	Channel of the log (optional).
-	*	\param[in] _dets	Details string of the log (optional).
-	*	\param[in] _postCmd	Post-log command on true predicate, usually for return value (optional).
-	*/
-	#define EDO_ERROR(_pred, ...) { __EDO_COND_LOG(_pred, Error, ##__VA_ARGS__) }
-
-	/**
-	*	\def EDO_ASSERT(_pred, _chan, _dets, _postCmd)
-	*
-	*	\brief Edo Log "assert if" macro.
-	*
-	*	Helper macro to use conditionnal Debug::Log assert.
-	*
-	*	\param[in] _pred	predicate of the Log. Output AssertFailure on false and AssertSuccess on true.
-	*	\param[in] _chan	Channel of the log (optional).
-	*	\param[in] _dets	Details string of the log (optional).
-	*/
-	#define EDO_ASSERT(_pred, ...)\
-	{\
-		auto bPred = (_pred);\
-		if (bPred) { __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(L"{ " EDO_WSTR(_pred) " }\tevaluated to true!", AssertSuccess, ##__VA_ARGS__) }\
-		else { __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(L"{ " EDO_WSTR(_pred) " }\tevaluated to false!", AssertFailure, ##__VA_ARGS__) }\
-	}
-
-	/**
-	*	\def EDO_THROW(_fstr, _chan, _dets)
-	*
-	*	\brief Edo Throw macro.
-	*
-	*	Helper macro to force call throw with Debug::Log assert.
-	*
-	*	\param[in] _fstr	Formatted String message of the log.
-	*		Use (_str, _args) with:
-	*		_str		String message of the log. Parentheses are optionnal for single string or object.
-	*		_args		Arguments to insert in string using %<num>. Must add parentheses surrounding: (_str, _args).
-	*	\param[in] _chan	Channel of the log (optional).
-	*	\param[in] _dets	Details string of the log (optional).
-	*/
-	#define EDO_THROW(_fstr, ...) __EDO_ASSERT_SELECTOR(__VA_ARGS__, __EDO_ASSERT4, __EDO_ASSERT3, __EDO_ASSERT2)(_fstr, AssertFailure, ##__VA_ARGS__);
-
-#else
-
-	#define EDO_LOG_END_OF_FRAME() {}
-
-	#define EDO_BREAK() {}
-
-	#define EDO_LOG(...) {}
-	#define EDO_WARN(...) {}
-	#define EDO_ERROR(...) {}
-
-	#define EDO_ASSERT(...) {}
-	#define EDO_THROW(...) {}
-
-#endif
-
-// ##############################################################
-
-// ##############################################################################################################################
 }
 
 #endif // EDO_SH_DEBUG_GUARD
