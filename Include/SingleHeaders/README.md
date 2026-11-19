@@ -21,14 +21,17 @@ Example:
 
 ## edo_debug.hpp
 
-_edo_debug.hpp_ offers simple, ready-to-use, and extensible tools for **logging** and **debugging** your application, such as:
+_edo_debug.hpp_ offers simple, ready-to-use, and extensible tools for **logging** and **debugging** your application.
+
+ such as:
 - Log type
 - [Log Levels](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp#loglevel)
 - [Log Channels](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp#logchannel)
 - [Output Stream interface](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp#logstream) (extensible), with Console & File Stream already provided
 - [Macros](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp#macros) helper preprocessor to be used for easier integration
 
-Links to the **official** [documentation](https://mrouffet.github.io/edo/edo_debug.hpp) and [wiki](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp) for advanced details.
+
+See [Wiki](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp) and [Doc](https://mrouffet.github.io/edo/edo_debug.hpp) for advanced details.
 
 ### Initialization
 No initialization is required to have **simple** console logging, however, a **one-line** initialization will provide **advanced** console (colors) and file logging.
@@ -106,6 +109,23 @@ See [_EDO_ASSERT_](https://github.com/mrouffet/Edo/wiki/edo_debug.hpp#edo_assert
 
 
 ## edo_maths.hpp
+
+_edo_maths.hpp_ offers a collection of _templated_ **maths** objects, functions, and tools to be used for various application (e.g. rendering), such as:
+- [Constants](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#constants)
+- [Degree type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#degree)
+- [Radian type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#radian)
+- [Cos/Sin/Tan](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#cossintan)
+- [Equals](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#equals)
+- [Lerps](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#lerps)
+- [Vector2 type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#vector2)
+- [Vector3 type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#vector3)
+- [Vector4 type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#vector4)
+- [Quaternion type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#quaternion)
+- [Matrix3 type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#matrix3)
+- [Matrix4 type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#matrix4)
+- [Transform type](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp#transform)
+
+See [Wiki](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp) and [Doc](https://mrouffet.github.io/edo/edo_maths.hpp) for advanced details.
 
 
 ## edo_memory.hpp
