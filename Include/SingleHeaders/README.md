@@ -133,6 +133,29 @@ See [Wiki](https://github.com/mrouffet/Edo/wiki/edo_maths.hpp) and [Doc](https:/
 
 ## edo_event.hpp
 
+_edo_event.hpp_ offers a collection of templated objects for **functions** and **events** management.
+
+See [Wiki](https://github.com/mrouffet/Edo/wiki/edo_event.hpp) and [Doc](https://mrouffet.github.io/edo/edo_event.hpp) for advanced details.
+
+Example:
+```cpp
+Event<void(int)> ev;
+
+// Subscribe
+ev += &Foo;
+
+MyStruct mem;
+ev.Add(&mem, &MyStruct::Bar);
+
+
+// Execute
+ev(6);
+
+
+// Unsubscribe
+ev -= &Foo;
+```
+
 
 ## edo_thread.hpp
 
