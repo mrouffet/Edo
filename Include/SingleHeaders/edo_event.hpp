@@ -1,4 +1,17 @@
 // Copyright (c) 2026 Maxime "mrouffet" ROUFFET. All Rights Reserved.
+// Source: https://github.com/mrouffet/Edo/blob/main/Include/SingleHeaders/edo_event.hpp
+// v1.0.1
+
+/**
+* Single-header file design:
+* Self contained header & source implementation.
+*
+* Include this file in any .h/.hpp/.cpp you want to use.
+* Define implementation in _exactly one_ C or C++ file using:
+*
+* #define EDO_EVENT_IMPLEMENTATION
+* #include <edo_event.hpp>
+*/
 
 #pragma once
 
